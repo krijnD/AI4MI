@@ -30,6 +30,7 @@ from functools import partial
 from collections import namedtuple
 from typing import Callable, Optional
 
+import time
 import numpy as np
 import matplotlib as mpl
 import matplotlib.cm
@@ -363,7 +364,11 @@ def main() -> None:
         fig.canvas.mpl_connect('button_press_event', event_handler)
 
         draw_function(order[:args.n], fig=fig)
-        plt.show()
+        # plt.show()
+
+        # save plot instead of displaying it 
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        plt.savefig(f"/home/scur2455/AI4MI/model_UNet/outputs/plot_{timestamp}.png")
 
 
 if __name__ == "__main__":
