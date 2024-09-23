@@ -14,47 +14,47 @@ noise_transform = tio.RandomNoise(mean=0, std=0.05)  # Moderate Gaussian noise
 
 # Loop through each patient folder
 for patient in patient_folders:
-    # Corrected paths to MRI volume and GT segmentation files
-    mri_path = os.path.join(base_folder, patient, f'{patient}.nii.gz')  # MRI volume
+    # Corrected paths to CT volume and GT segmentation files
+    ct_path = os.path.join(base_folder, patient, f'{patient}.nii.gz')  # CT volume
     gt_path = os.path.join(base_folder, patient, 'GT.nii.gz')  # Ground truth segmentation
     
-    if os.path.exists(mri_path) and os.path.exists(gt_path):
-        # Load the MRI and GT images
-        mri_image = tio.ScalarImage(mri_path)
+    if os.path.exists(ct_path) and os.path.exists(gt_path):
+        # Load the CT and GT images
+        ct_image = tio.ScalarImage(ct_path)
         gt_image = tio.LabelMap(gt_path)
         
         # Compose both images into one subject
         subject = tio.Subject(
-            mri=mri_image,
+            ct=ct_image,
             gt=gt_image
         )
         
-        # Apply transformations to both the MRI and the GT segmentation
+        # Apply transformations to both the CT and the GT segmentation
         affine_augmented = affine_transform(subject)
         elastic_augmented = elastic_transform(subject)
         noise_augmented = noise_transform(subject)
 
-        # Save augmented MRI and GT segmentation files
-        affine_output_mri = os.path.join(base_folder, patient, 'augmented_MRI_affine.nii.gz')
+        # Save augmented CT and GT segmentation files
+        affine_output_ct = os.path.join(base_folder, patient, 'augmented_CT_affine.nii.gz')
         affine_output_gt = os.path.join(base_folder, patient, 'augmented_GT_affine.nii.gz')
         
-        elastic_output_mri = os.path.join(base_folder, patient, 'augmented_MRI_elastic.nii.gz')
+        elastic_output_ct = os.path.join(base_folder, patient, 'augmented_CT_elastic.nii.gz')
         elastic_output_gt = os.path.join(base_folder, patient, 'augmented_GT_elastic.nii.gz')
         
-        noise_output_mri = os.path.join(base_folder, patient, 'augmented_MRI_noise.nii.gz')
+        noise_output_ct = os.path.join(base_folder, patient, 'augmented_CT_noise.nii.gz')
         noise_output_gt = os.path.join(base_folder, patient, 'augmented_GT_noise.nii.gz')
         
-        # Save MRI and GT augmentations
-        affine_augmented['mri'].save(affine_output_mri)
+        # Save CT and GT augmentations
+        affine_augmented['ct'].save(affine_output_ct)
         affine_augmented['gt'].save(affine_output_gt)
         
-        elastic_augmented['mri'].save(elastic_output_mri)
+        elastic_augmented['ct'].save(elastic_output_ct)
         elastic_augmented['gt'].save(elastic_output_gt)
         
-        noise_augmented['mri'].save(noise_output_mri)
+        noise_augmented['ct'].save(noise_output_ct)
         noise_augmented['gt'].save(noise_output_gt)
         
         print(f"Augmented images saved for {patient}")
         
     else:
-        print(f"MRI or GT file not found for {patient}")
+        print
