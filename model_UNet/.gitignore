@@ -1,4 +1,6 @@
 data/*
+data/ 
+local_test/
 !data/*.b3sum
 !data/*.sha256
 results/

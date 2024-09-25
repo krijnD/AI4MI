@@ -51,3 +51,23 @@ class CrossEntropy():
 class PartialCrossEntropy(CrossEntropy):
     def __init__(self, **kwargs):
         super().__init__(idk=[1], **kwargs)
+
+
+class DiceLoss():
+    def __init__(self, **kwargs):
+        # Self.idk is used to filter out some classes of the target mask. Use fancy indexing
+        self.idk = kwargs['idk']
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        p = pred_softmax[:, self.idk, ...]
+        g = weak_target[:, self.idk, ...].float()  # Convert g to float
+
+        num = 2 * einsum("bkwh,bkwh->", p, g)
+        den = (p + g).sum() + 1e-10
+
+        return 1 - num / den

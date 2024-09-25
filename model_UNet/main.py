@@ -48,7 +48,7 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import (CrossEntropy)
+from losses import CrossEntropy, DiceLoss
 
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -124,12 +124,23 @@ def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
-    if args.mode == "full":
-        loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
-    elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
-        loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+    # Choose the loss function based on args.loss
+    if args.loss == 'DiceLoss':
+        if args.mode == "full":
+            loss_fn = DiceLoss(idk=list(range(K)))  # Supervise both background and foreground
+        elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
+            loss_fn = DiceLoss(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+        else:
+            raise ValueError(args.mode, args.dataset)
+    elif args.loss == 'CrossEntropy':
+        if args.mode == "full":
+            loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+        elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
+            loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+        else:
+            raise ValueError(args.mode, args.dataset)
     else:
-        raise ValueError(args.mode, args.dataset)
+        raise ValueError(f"Unknown loss function {args.loss}")
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -241,6 +252,8 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
+    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'DiceLoss'],
+                        help="Loss function to use during training.")
 
     args = parser.parse_args()
 
