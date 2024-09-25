@@ -89,6 +89,34 @@ The codebase uses a lot of assertions for control and self-documentation, they c
 ```
 $ python -O main.py --dataset TOY2 --mode full --epoch 25 --dest results/toy2/ce --gpu
 ```
+To train the model using the combined loss function (`CombinedLoss`), which integrates both Dice Loss and Cross Entropy Loss, you can use the following command:
+
+```bash
+python main.py \
+    --dataset TOY2 \
+    --mode full \
+    --epochs 200 \
+    --dest results/toy2/combined \
+    --gpu \
+    --loss CombinedLoss \
+    --weight_ce 1.0 \
+    --weight_dice 1.0
+
+python main.py \
+    --dataset TOY2 \
+    --mode full \
+    --epochs 200 \
+    --dest results/toy2/dice \
+    --gpu \
+    --loss DiceLoss
+    
+python main.py \
+    --dataset TOY2 \
+    --mode full \
+    --epochs 200 \
+    --dest results/toy2/ce \
+    --gpu \
+    --loss CrossEntropy
 
 ### Viewing the results
 #### 2D viewer

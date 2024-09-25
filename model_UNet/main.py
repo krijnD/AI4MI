@@ -48,7 +48,7 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import CrossEntropy, DiceLoss
+from losses import CrossEntropy, DiceLoss, CombinedLoss
 
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -125,7 +125,14 @@ def runTraining(args):
     net, optimizer, device, train_loader, val_loader, K = setup(args)
 
     # Choose the loss function based on args.loss
-    if args.loss == 'DiceLoss':
+    if args.loss == 'CombinedLoss':
+        if args.mode == "full":
+            loss_fn = CombinedLoss(idk=list(range(K)), weight_ce=args.weight_ce, weight_dice=args.weight_dice)
+        elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
+            loss_fn = CombinedLoss(idk=[0, 1, 3, 4], weight_ce=args.weight_ce, weight_dice=args.weight_dice)
+        else:
+            raise ValueError(args.mode, args.dataset)
+    elif args.loss == 'DiceLoss':  # Changed from 'if' to 'elif'
         if args.mode == "full":
             loss_fn = DiceLoss(idk=list(range(K)))  # Supervise both background and foreground
         elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
@@ -252,8 +259,14 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'DiceLoss'],
+    # Add the new --loss argument
+    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'DiceLoss', 'CombinedLoss'],
                         help="Loss function to use during training.")
+    # Add optional arguments for loss weights
+    parser.add_argument('--weight_ce', type=float, default=1.0,
+                        help="Weight for Cross Entropy loss in CombinedLoss.")
+    parser.add_argument('--weight_dice', type=float, default=1.0,
+                        help="Weight for Dice loss in CombinedLoss.")
 
     args = parser.parse_args()
 

@@ -71,3 +71,18 @@ class DiceLoss():
         den = (p + g).sum() + 1e-10
 
         return 1 - num / den
+    
+class CombinedLoss():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']
+        self.dice_loss = DiceLoss(idk=self.idk)
+        self.cross_entropy = CrossEntropy(idk=self.idk)
+        self.weight_ce = kwargs.get('weight_ce', 1.0)   # Weight for Cross Entropy
+        self.weight_dice = kwargs.get('weight_dice', 1.0)  # Weight for Dice Loss
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        loss_ce = self.cross_entropy(pred_softmax, weak_target)
+        loss_dice = self.dice_loss(pred_softmax, weak_target)
+        total_loss = self.weight_ce * loss_ce + self.weight_dice * loss_dice
+        return total_loss
