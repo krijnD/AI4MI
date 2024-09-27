@@ -3,7 +3,7 @@ import nibabel as nib
 import numpy as np
 
 # Define paths to the data
-base_folder = 'data/segthor_train/train'
+base_folder = '../data/segthor_train/train'
 patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
 
 for patient in patient_folders:

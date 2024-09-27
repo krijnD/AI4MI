@@ -3,6 +3,7 @@ import numpy as np
 import nibabel as nib
 from scipy.ndimage import affine_transform, shift, rotate
 from pathlib import Path
+import os
 
 # Paths for fixed (anchor) and moving (distorted) images
 fixed_image_path = 'data/segthor_train/train/Patient_27/GT2.nii.gz'
@@ -60,7 +61,7 @@ moving_image = (nib.load(moving_image_path).get_fdata() == replace_index).astype
 output_image_path = 'transformed_image.nii.gz'
 
 # Apply the saved affine transformation
-transformed_image_data = apply_affine_transform(moving_image, 'transform.tfm')
+transformed_image_data = apply_affine_transform(moving_image, 'model_ENet/transform.tfm')
 
 # Save the transformed image
 save_image_with_nibabel(transformed_image_data.round(), moving_image_path, output_image_path, replace_index)
@@ -78,7 +79,7 @@ for img in Path.cwd().rglob('**/GT.nii.gz'):
         moving_image = (moving_image == replace_index).astype(np.float32)
 
     # Apply affine transformation and save the transformed image
-    transformed_image_data = apply_affine_transform(moving_image, 'transform.tfm')
+    transformed_image_data = apply_affine_transform(moving_image, 'model_ENet/transform.tfm')
     output_image_path = img.with_name("GT.nii.gz")
     save_image_with_nibabel(transformed_image_data.round(), old_img_path, output_image_path, replace_index=replace_index)
     # Print confirmation that the new GT has been made

@@ -1,3 +1,14 @@
+data/
+local_test/
+!data/*.b3sum
+!data/*.sha256
+model_ENet/results/
+volumes/
+ai4mi/
+bin/
+__pycache__/
+grad_figs/*.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
