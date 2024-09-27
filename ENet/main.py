@@ -254,7 +254,7 @@ def main():
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
 
-    parser.add_argument('--num_workers', type=int, default=5)
+    parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
