@@ -368,7 +368,7 @@ def main() -> None:
 
         # save plot instead of displaying it 
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        plt.savefig(f"model_ENet/viewer/plot_{timestamp}.png")
+        plt.savefig(f"viewer/plot_{timestamp}.png")
 
 
 if __name__ == "__main__":
