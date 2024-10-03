@@ -2,7 +2,7 @@ import os
 import torchio as tio
 
 # Define patient folder base directory relative to the current script location
-base_folder = '../data/segthor_train/train'
+base_folder = 'data/segthor_train/train'
 
 # List of patient folders (01 to 40)
 patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
@@ -57,4 +57,4 @@ for patient in patient_folders:
         print(f"Augmented images saved for {patient}")
         
     else:
-        print
+        print("CT or GT file not found for {patient}")
