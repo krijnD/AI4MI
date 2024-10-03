@@ -30,13 +30,12 @@ from pprint import pprint
 from operator import itemgetter
 from shutil import copytree, rmtree
 
-import torch
 import numpy as np
 import torch.nn.functional as F
 from torch import nn, Tensor
 from torchvision import transforms
 from torch.utils.data import DataLoader
-
+import torch
 from dataset import SliceDataset
 from ShallowNet import shallowCNN
 from ENet import ENet
@@ -79,6 +78,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
         lambda img: np.array(img)[np.newaxis, ...],
+        lambda nd: np.round((255 / nd.max()) * nd), # TODO: increase brightness of dark pictures in preprocess!!!
         lambda nd: nd / 255,  # max <= 1
         lambda nd: torch.tensor(nd, dtype=torch.float32)
     ])
@@ -91,9 +91,10 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
         # Very sketchy but that works here and that simplifies visualization
         lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
         lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],  # Add one dimension to simulate batch
-        lambda t: class2one_hot(t, K=K),
+        lambda t: class2one_hot(t, K=K), # Go from (1, H, W) to (1, K, H, W) in one hot encoding for every class
         itemgetter(0)
     ])
+
 
     train_set = SliceDataset('train',
                              root_dir,

@@ -3,6 +3,7 @@ local_test/
 !data/*.b3sum
 !data/*.sha256
 ENet/results/
+VNet/results/
 volumes/
 ai4mi/
 bin/
