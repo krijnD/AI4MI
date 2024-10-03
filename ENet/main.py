@@ -78,8 +78,8 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
         lambda img: np.array(img)[np.newaxis, ...],
-        lambda nd: np.round((255 / nd.max()) * nd), # TODO: increase brightness of dark pictures in preprocess!!!
-        lambda nd: nd / 255,  # max <= 1
+        lambda nd: np.clip((255 / nd.max()) * nd * 1.2, 0, 255), # TODO: I adjusted the brightness here by 1.2
+        lambda nd: nd / 255, 
         lambda nd: torch.tensor(nd, dtype=torch.float32)
     ])
 
