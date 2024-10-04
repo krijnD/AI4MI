@@ -1,8 +1,13 @@
 import os
 import torchio as tio
+import shutil
 
 # Define patient folder base directory relative to the current script location
-base_folder = 'data/segthor_train/train'
+base_folder = '../data/segthor_train/train'
+
+# Define paths for ENet and nnU-Net directories
+enet_base_folder = '../ENet_data/original_data'
+nnunet_base_folder = '../nnU-Net_data/original_data'
 
 # List of patient folders (01 to 40)
 patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
@@ -14,7 +19,7 @@ noise_transform = tio.RandomNoise(mean=0, std=0.05)  # Moderate Gaussian noise
 
 # Loop through each patient folder
 for patient in patient_folders:
-    # Corrected paths to CT volume and GT segmentation files
+    # Corrected paths to CT volume and GT segmentation files in the original `segthor_train` folder
     ct_path = os.path.join(base_folder, patient, f'{patient}.nii.gz')  # CT volume
     gt_path = os.path.join(base_folder, patient, 'GT.nii.gz')  # Ground truth segmentation
     
@@ -34,27 +39,48 @@ for patient in patient_folders:
         elastic_augmented = elastic_transform(subject)
         noise_augmented = noise_transform(subject)
 
-        # Save augmented CT and GT segmentation files
-        affine_output_ct = os.path.join(base_folder, patient, 'augmented_CT_affine.nii.gz')
-        affine_output_gt = os.path.join(base_folder, patient, 'augmented_GT_affine.nii.gz')
+        # Define the ENet and nnU-Net output folders for this patient
+        enet_patient_folder = os.path.join(enet_base_folder, patient)
+        nnunet_patient_folder = os.path.join(nnunet_base_folder, patient)
+
+        # Ensure patient directories exist in both ENet and nnU-Net data directories
+        os.makedirs(enet_patient_folder, exist_ok=True)
+        os.makedirs(nnunet_patient_folder, exist_ok=True)
         
-        elastic_output_ct = os.path.join(base_folder, patient, 'augmented_CT_elastic.nii.gz')
-        elastic_output_gt = os.path.join(base_folder, patient, 'augmented_GT_elastic.nii.gz')
+        # Save augmented CT and GT segmentation files to both ENet and nnU-Net directories
+        # Affine transformation
+        affine_output_ct = 'augmented_CT_affine.nii.gz'
+        affine_output_gt = 'augmented_GT_affine.nii.gz'
         
-        noise_output_ct = os.path.join(base_folder, patient, 'augmented_CT_noise.nii.gz')
-        noise_output_gt = os.path.join(base_folder, patient, 'augmented_GT_noise.nii.gz')
+        # Elastic transformation
+        elastic_output_ct = 'augmented_CT_elastic.nii.gz'
+        elastic_output_gt = 'augmented_GT_elastic.nii.gz'
         
-        # Save CT and GT augmentations
-        affine_augmented['ct'].save(affine_output_ct)
-        affine_augmented['gt'].save(affine_output_gt)
+        # Noise transformation
+        noise_output_ct = 'augmented_CT_noise.nii.gz'
+        noise_output_gt = 'augmented_GT_noise.nii.gz'
         
-        elastic_augmented['ct'].save(elastic_output_ct)
-        elastic_augmented['gt'].save(elastic_output_gt)
+        # Save the augmented images to ENet directory
+        affine_augmented['ct'].save(os.path.join(enet_patient_folder, affine_output_ct))
+        affine_augmented['gt'].save(os.path.join(enet_patient_folder, affine_output_gt))
         
-        noise_augmented['ct'].save(noise_output_ct)
-        noise_augmented['gt'].save(noise_output_gt)
+        elastic_augmented['ct'].save(os.path.join(enet_patient_folder, elastic_output_ct))
+        elastic_augmented['gt'].save(os.path.join(enet_patient_folder, elastic_output_gt))
         
-        print(f"Augmented images saved for {patient}")
+        noise_augmented['ct'].save(os.path.join(enet_patient_folder, noise_output_ct))
+        noise_augmented['gt'].save(os.path.join(enet_patient_folder, noise_output_gt))
+        
+        # Now save the same augmented images to nnU-Net directory
+        shutil.copy(os.path.join(enet_patient_folder, affine_output_ct), os.path.join(nnunet_patient_folder, affine_output_ct))
+        shutil.copy(os.path.join(enet_patient_folder, affine_output_gt), os.path.join(nnunet_patient_folder, affine_output_gt))
+        
+        shutil.copy(os.path.join(enet_patient_folder, elastic_output_ct), os.path.join(nnunet_patient_folder, elastic_output_ct))
+        shutil.copy(os.path.join(enet_patient_folder, elastic_output_gt), os.path.join(nnunet_patient_folder, elastic_output_gt))
+        
+        shutil.copy(os.path.join(enet_patient_folder, noise_output_ct), os.path.join(nnunet_patient_folder, noise_output_ct))
+        shutil.copy(os.path.join(enet_patient_folder, noise_output_gt), os.path.join(nnunet_patient_folder, noise_output_gt))
+
+        print(f"Augmented images saved for {patient} in ENet and nnU-Net folders.")
         
     else:
-        print("CT or GT file not found for {patient}")
+        print(f"CT or GT file not found for {patient}")
