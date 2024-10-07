@@ -1,4 +1,6 @@
-ENet/data/
+data/segthor_train/
+data/SEGTHOR/
+data/TOY2/
 local_test/
 !data/*.b3sum
 !data/*.sha256
