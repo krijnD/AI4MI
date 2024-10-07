@@ -1,4 +1,5 @@
 data/segthor_train/
+data/segthor_test_nolabels/
 data/SEGTHOR/
 data/TOY2/
 local_test/
