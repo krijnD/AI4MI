@@ -1,10 +1,17 @@
-data/segthor_train/
-data/segthor_test_nolabels/
-data/SEGTHOR/
-data/TOY2/
-local_test/
+# Ignore everything in the data folder
+data/*
+
+# But do not ignore the preprocessing folder inside data
+!data/preprocessing/
+!data/preprocessing/**
+
+# Optionally, ignore any files you do not want to track inside preprocessing
+# For example, ignore .pyc files or temporary files in preprocessing
+data/preprocessing/*.pyc
+data/preprocessing/*.tmp
 !data/*.b3sum
 !data/*.sha256
+
 ENet/results/
 VNet/results/
 volumes/
@@ -12,10 +19,7 @@ ai4mi/
 bin/
 __pycache__/
 grad_figs/*.png
-/data/data/segthor_train
-/data/data/TOY2
-data/ENet_data
-data/nnU-Net_data
+
 
 # ignore affine data
 ENet/affine_data/
