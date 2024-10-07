@@ -1,5 +1,8 @@
 import os
 import shutil
+import numpy as np
+import nibabel as nib
+from scipy.ndimage import affine_transform  # To apply affine matrix
 import torchio as tio
 
 # --- Step 1: Move segthor_train and delete data/data ---
@@ -44,10 +47,68 @@ def create_augmentation_folders():
         else:
             print(f"Folder already exists: {folder_path}")
 
-# --- Step 3: Apply augmentations and save in correct folders ---
+# --- Step 3: Transform GT.nii.gz files ---
+def transform_gt_files():
+    # Paths to segthor_train (with corrected GT files)
+    base_folder = '../segthor_train/train'
+    
+    TR = np.asarray([[1, 0, 0, 50],
+                     [0,  1, 0, 40],  
+                     [0, 0, 1, 15],  
+                     [0, 0, 0, 1]])
+
+    DEG: int = 27
+    ϕ: float = - DEG / 180 * np.pi
+    RO = np.asarray([[np.cos(ϕ), -np.sin(ϕ), 0, 0],  
+                     [np.sin(ϕ),  np.cos(ϕ), 0, 0],  
+                     [     0,         0,     1, 0],  
+                     [     0,         0,     0, 1]])
+
+    X_bar: float = 275
+    Y_bar: float = 200
+    Z_bar: float = 0
+    C1 = np.asarray([[1, 0, 0, X_bar],
+                     [0, 1, 0, Y_bar],
+                     [0, 0, 1, Z_bar],
+                     [0, 0, 0,    1]])
+    C2 = np.linalg.inv(C1)
+
+    AFF = C1 @ RO @ C2 @ TR
+    INV = np.linalg.inv(AFF)
+    
+    # Loop through the patient folders to process GT.nii.gz
+    patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
+    
+    for patient in patient_folders:
+        gt_path = os.path.join(base_folder, patient, 'GT.nii.gz')
+        
+        if os.path.exists(gt_path):
+            print(f"Processing {gt_path}...")
+
+            img = nib.load(gt_path)
+            gt = img.get_fdata()
+            original_affine = img.affine
+
+            heart_segmentation = (gt == 2).astype(np.uint8)  # Binary mask for heart
+
+            shifted_heart = affine_transform(heart_segmentation, INV[:3, :3], offset=INV[:3, 3])
+            shifted_heart = np.round(shifted_heart).astype(np.uint8)  # Ensure binary mask
+
+            transformed_data = np.copy(gt)
+            transformed_data[gt == 2] = 0  # Remove original heart
+            transformed_data[shifted_heart == 1] = 2  # Replace with transformed heart
+
+            transformed_data = transformed_data.astype(np.uint8)
+            aligned_img = nib.Nifti1Image(transformed_data, affine=original_affine)
+            nib.save(aligned_img, gt_path)
+            print(f"Saved transformed GT for {patient} at {gt_path}")
+        else:
+            print(f"GT file not found for {patient}")
+
+# --- Step 4: Apply augmentations and save in correct folders ---
 def apply_augmentations():
     # Define the base folder for patient data
-    base_folder = '../segthor_train/train'  # Now one level up after moving
+    base_folder = '../segthor_train/train'
 
     # Define paths for saving augmented files
     output_folders = {
@@ -92,6 +153,7 @@ def apply_augmentations():
 
 # --- Main execution ---
 if __name__ == "__main__":
-    move_segthor_train()
-    create_augmentation_folders()
-    apply_augmentations()
+    move_segthor_train()  # Step 1: Move and clean up folders
+    create_augmentation_folders()  # Step 2: Create new augmentation folders
+    transform_gt_files()  # Step 3: Transform GT.nii.gz files before augmentations
+    apply_augmentations()  # Step 4: Apply augmentations and save to correct folders
