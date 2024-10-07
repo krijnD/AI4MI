@@ -123,26 +123,26 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.dataset} with {args.mode}")
-    net, optimizer, device, train_loader, val_loader, K = setup(args)
+    model, optimizer, device, train_loader, val_loader, num_classes = setup(args)
 
     # Choose the loss function based on args.loss
     if args.loss == 'CombinedLoss':
         if args.mode == "full":
-            loss_fn = CombinedLoss(idk=list(range(K)), weight_ce=args.weight_ce, weight_dice=args.weight_dice)
+            loss_fn = CombinedLoss(idk=list(range(num_classes)), weight_ce=args.weight_ce, weight_dice=args.weight_dice)
         elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
             loss_fn = CombinedLoss(idk=[0, 1, 3, 4], weight_ce=args.weight_ce, weight_dice=args.weight_dice)
         else:
             raise ValueError(args.mode, args.dataset)
     elif args.loss == 'DiceLoss':  # Changed from 'if' to 'elif'
         if args.mode == "full":
-            loss_fn = DiceLoss(idk=list(range(K)))  # Supervise both background and foreground
+            loss_fn = DiceLoss(idk=list(range(num_classes)))  # Supervise both background and foreground
         elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
             loss_fn = DiceLoss(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
         else:
             raise ValueError(args.mode, args.dataset)
     elif args.loss == 'CrossEntropy':
         if args.mode == "full":
-            loss_fn = CrossEntropy(idk=list(range(K)))  # Supervise both background and foreground
+            loss_fn = CrossEntropy(idk=list(range(num_classes)))  # Supervise both background and foreground
         elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
             loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
         else:
@@ -152,76 +152,76 @@ def runTraining(args):
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
-    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), K))
+    log_dice_tra: Tensor = torch.zeros((args.epochs, len(train_loader.dataset), num_classes))
     log_loss_val: Tensor = torch.zeros((args.epochs, len(val_loader)))
-    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), K))
+    log_dice_val: Tensor = torch.zeros((args.epochs, len(val_loader.dataset), num_classes))
 
     best_dice: float = 0
 
-    for e in range(args.epochs):
-        for m in ['train', 'val']:
-            match m:
+    for epoch in range(args.epochs):
+        for method in ['train', 'val']:
+            match method:
                 case 'train':
-                    net.train()
-                    opt = optimizer
-                    cm = Dcm
-                    desc = f">> Training   ({e: 4d})"
+                    model.train()
+                    optimizer_instance = optimizer
+                    context_manager = Dcm
+                    desc = f">> Training   ({epoch: 4d})"
                     loader = train_loader
                     log_loss = log_loss_tra
                     log_dice = log_dice_tra
                 case 'val':
-                    net.eval()
-                    opt = None
-                    cm = torch.no_grad
-                    desc = f">> Validation ({e: 4d})"
+                    model.eval()
+                    optimizer_instance = None
+                    context_manager = torch.no_grad
+                    desc = f">> Validation ({epoch: 4d})"
                     loader = val_loader
                     log_loss = log_loss_val
                     log_dice = log_dice_val
 
-            with cm():  # Either dummy context manager, or the torch.no_grad for validation
-                j = 0
+            with context_manager():  # Either dummy context manager, or the torch.no_grad for validation
+                global_sample_idx = 0
                 tq_iter = tqdm_(enumerate(loader), total=len(loader), desc=desc)
-                for i, data in tq_iter:
+                for batch_idx, data in tq_iter:
                     img = data['images'].to(device)
                     gt = data['gts'].to(device)
 
-                    if opt:  # So only for training
-                        opt.zero_grad()
+                    if optimizer_instance:  # So only for training
+                        optimizer_instance.zero_grad()
 
                     # Sanity tests to see we loaded and encoded the data correctly
                     assert 0 <= img.min() and img.max() <= 1
-                    B, _, W, H = img.shape
+                    batch_size, _, W, H = img.shape
 
-                    pred_logits = net(img)
+                    pred_logits = model(img)
                     pred_probs = F.softmax(1 * pred_logits, dim=1)  # 1 is the temperature parameter
 
                     # Metrics computation, not used for training
                     pred_seg = probs2one_hot(pred_probs)
-                    log_dice[e, j:j + B, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
+                    log_dice[epoch, global_sample_idx:global_sample_idx + batch_size, :] = dice_coef(gt, pred_seg)  # One DSC value per sample and per class
 
                     loss = loss_fn(pred_probs, gt)
-                    log_loss[e, i] = loss.item()  # One loss value per batch (averaged in the loss)
+                    log_loss[epoch, batch_idx] = loss.item()  # One loss value per batch (averaged in the loss)
 
-                    if opt:  # Only for training
+                    if optimizer_instance:  # Only for training
                         loss.backward()
-                        opt.step()
+                        optimizer_instance.step()
 
-                    if m == 'val':
+                    if method == 'val':
                         with warnings.catch_warnings():
                             warnings.filterwarnings('ignore', category=UserWarning)
                             predicted_class: Tensor = probs2class(pred_probs)
-                            mult: int = 63 if K == 5 else (255 / (K - 1))
+                            mult: int = 63 if num_classes == 5 else (255 / (num_classes - 1))
                             save_images(predicted_class * mult,
                                         data['stems'],
-                                        args.dest / f"iter{e:03d}" / m)
+                                        args.dest / f"iter{epoch:03d}" / method)
 
-                    j += B  # Keep in mind that _in theory_, each batch might have a different size
+                    global_sample_idx += batch_size  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
-                    postfix_dict: dict[str, str] = {"Dice": f"{log_dice[e, :j, 1:].mean():05.3f}",
-                                                    "Loss": f"{log_loss[e, :i + 1].mean():5.2e}"}
-                    if K > 2:
-                        postfix_dict |= {f"Dice-{k}": f"{log_dice[e, :j, k].mean():05.3f}"
-                                         for k in range(1, K)}
+                    postfix_dict: dict[str, str] = {"Dice": f"{log_dice[epoch, :global_sample_idx, 1:].mean():05.3f}",
+                                                    "Loss": f"{log_loss[epoch, :batch_idx + 1].mean():5.2e}"}
+                    if num_classes > 2:
+                        postfix_dict |= {f"Dice-{class_idx}": f"{log_dice[epoch, :global_sample_idx, class_idx].mean():05.3f}"
+                                         for class_idx in range(1, num_classes)}
                     tq_iter.set_postfix(postfix_dict)
 
         # I save it at each epochs, in case the code crashes or I decide to stop it early
@@ -230,20 +230,20 @@ def runTraining(args):
         np.save(args.dest / "loss_val.npy", log_loss_val)
         np.save(args.dest / "dice_val.npy", log_dice_val)
 
-        current_dice: float = log_dice_val[e, :, 1:].mean().item()
+        current_dice: float = log_dice_val[epoch, :, 1:].mean().item()
         if current_dice > best_dice:
-            print(f">>> Improved dice at epoch {e}: {best_dice:05.3f}->{current_dice:05.3f} DSC")
+            print(f">>> Improved dice at epoch {epoch}: {best_dice:05.3f}->{current_dice:05.3f} DSC")
             best_dice = current_dice
             with open(args.dest / "best_epoch.txt", 'w') as f:
-                    f.write(str(e))
+                    f.write(str(epoch))
 
             best_folder = args.dest / "best_epoch"
             if best_folder.exists():
                     rmtree(best_folder)
-            copytree(args.dest / f"iter{e:03d}", Path(best_folder))
+            copytree(args.dest / f"iter{epoch:03d}", Path(best_folder))
 
-            torch.save(net, args.dest / "bestmodel.pkl")
-            torch.save(net.state_dict(), args.dest / "bestweights.pt")
+            torch.save(model, args.dest / "bestmodel.pkl")
+            torch.save(model.state_dict(), args.dest / "bestweights.pt")
 
 
 def main():
