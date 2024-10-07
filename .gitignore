@@ -1,4 +1,4 @@
-data/
+ENet/data/
 local_test/
 !data/*.b3sum
 !data/*.sha256
@@ -9,6 +9,13 @@ ai4mi/
 bin/
 __pycache__/
 grad_figs/*.png
+/data/data/segthor_train
+/data/data/TOY2
+data/ENet_data
+data/nnU-Net_data
+
+# ignore affine data
+ENet/affine_data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

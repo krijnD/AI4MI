@@ -29,3 +29,11 @@ data/SEGTHOR: data/segthor_train
 	python $(CFLAGS) slice_segthor.py --source_dir $^ --dest_dir $@_tmp \
 		--shape 256 256 --retain 10
 	mv $@_tmp $@
+
+# slice affine transformed data
+affine_data/AFFINE_SEGTHOR: affine_data
+	$(info $(green)python $(CFLAGS) slice_segthor.py on transformed data$(reset))
+	rm -rf $@_tmp $@
+	python $(CFLAGS) slice_segthor.py --source_dir $^ --dest_dir $@_tmp \
+		--shape 256 256 --retain 10
+	mv $@_tmp $@
