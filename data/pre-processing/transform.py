@@ -172,7 +172,7 @@ def apply_augmentations(segthor_train_dir, base_data_dir):
 
 # --- Main execution ---
 if __name__ == "__main__":
-    # Since we're running from 'AI4MI/data/pre-processing', we go up two levels to access 'AI4MI/data'
+    # Since we're running from 'AI4MI/data/pre-processing', we go up one level to access 'AI4MI/data'
     base_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
     downloaded_data_dir = os.path.join(base_data_dir, 'data', 'segthor_train', 'train')  # Original downloaded data
