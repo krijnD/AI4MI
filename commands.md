@@ -6,5 +6,7 @@ source ai4mi/bin/activate
 # ## Data Preprocessing
 
 ### 1. Slice Segthor Train Data
-```bash
-make /AI4MI/data/pre-processing/slice_segthor_train
+make data/slice_segthor_train
+
+### 1. Slice Segthor affine Data
+make data/slice_segthor_train
