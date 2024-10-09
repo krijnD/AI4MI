@@ -40,10 +40,10 @@ unzip_segthor_train: data/segthor_train.zip
 # Slicing segthor_train (slicing only)
 data/slice_segthor_train: data/segthor_train
 	$(info $(green)Slicing data/segthor_train using slice_segthor.py$(reset))
-	rm -rf data/SEGTHOR_tmp data/SEGTHOR
+	rm -rf data/SEGTHOR_tmp data/SEGTHOR_train
 	python $(CFLAGS) slice_segthor.py --source_dir $^ --dest_dir data/SEGTHOR_tmp \
 		--shape 256 256 --retain 10 --test_with_labels True
-	mv data/SEGTHOR_tmp data/SEGTHOR
+	mv data/SEGTHOR_tmp data/SEGTHOR_train
 
 
 # Slicing segthor_affine (slicing only)
