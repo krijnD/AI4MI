@@ -5,29 +5,12 @@ import argparse
 import os
 import random
 
-def create_splits(train_patient_names, num_splits, num_val_cases):
-    """
-    Creates custom splits for cross-validation.
-    """
-    # Shuffle the patient names to ensure randomness
-    random.shuffle(train_patient_names)
-
-    splits = []
-    total_cases = len(train_patient_names)
-    fold_size = total_cases // num_splits
-
-    for i in range(num_splits):
-        val_indices = range(i * fold_size, (i + 1) * fold_size) if i < num_splits - 1 else range(i * fold_size, total_cases)
-        val_cases = [train_patient_names[idx] for idx in val_indices]
-        train_cases = [p for p in train_patient_names if p not in val_cases]
-
-        # Limit the number of validation cases if specified
-        if num_val_cases and num_val_cases < len(val_cases):
-            val_cases = val_cases[:num_val_cases]
-
-        splits.append({'train': train_cases, 'val': val_cases})
-
-    return splits
+from collections import OrderedDict
+from batchgenerators.utilities.file_and_folder_operations import *
+import shutil
+import argparse
+import os
+import random
 
 """
 This scfript converts the SEGTHOR dataset (and or variations) into nnUNetv2 format with custom data splits.
@@ -71,6 +54,32 @@ Steps:
 
 """
 
+def create_splits(train_patient_names, num_splits, num_val_cases):
+    """
+    Creates custom splits for cross-validation.
+    """
+    # Shuffle the patient names to ensure randomness
+    random.shuffle(train_patient_names)
+
+    splits = []
+    total_cases = len(train_patient_names)
+    fold_size = total_cases // num_splits
+
+    for i in range(num_splits):
+        val_indices = range(i * fold_size, (i + 1) * fold_size) if i < num_splits - 1 else range(i * fold_size, total_cases)
+        val_cases = [train_patient_names[idx] for idx in val_indices]
+        train_cases = [p for p in train_patient_names if p not in val_cases]
+
+        # Limit the number of validation cases if specified
+        if num_val_cases and num_val_cases < len(val_cases):
+            val_cases = val_cases[:num_val_cases]
+
+        splits.append({'train': train_cases, 'val': val_cases})
+
+    return splits
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert SEGTHOR data directly to nnUNetv2 format with custom splits.")
     parser.add_argument('--data_dir', type=str, required=True, help="Path to the SEGTHOR data directory.")
@@ -98,9 +107,11 @@ if __name__ == "__main__":
     imagestr = join(out_base, "imagesTr")
     imagests = join(out_base, "imagesTs")
     labelstr = join(out_base, "labelsTr")
+    labelsts = join(out_base, "labelsTs")
     maybe_mkdir_p(imagestr)
     maybe_mkdir_p(imagests)
     maybe_mkdir_p(labelstr)
+    maybe_mkdir_p(labelsts)
 
     all_patient_names = subfolders(join(base, "train"), join=False)
     all_patient_names.sort()
@@ -124,13 +135,11 @@ if __name__ == "__main__":
     for p in test_patient_names:
         curr = join(base, "train", p)
         image_file = join(curr, p + ".nii.gz")
+        label_file = join(curr, "GT.nii.gz")
         # Copy images to imagesTs
         shutil.copy(image_file, join(imagests, p + "_0000.nii.gz"))
-        # Optionally copy labels to labelsTs if you have them and want to evaluate
-        # labels_ts_folder = join(out_base, "labelsTs")
-        # maybe_mkdir_p(labels_ts_folder)
-        # label_file = join(curr, "GT.nii.gz")
-        # shutil.copy(label_file, join(labels_ts_folder, p + ".nii.gz"))
+        # Copy labels to labelsTs
+        shutil.copy(label_file, join(labelsts, p + ".nii.gz"))
 
     # Create the dataset JSON for nnUNetv2
     dataset_json = OrderedDict()
