@@ -214,6 +214,15 @@ def runTraining(args):
                             save_images(predicted_class * mult,
                                         data['stems'],
                                         args.dest / f"iter{epoch:03d}" / method)
+                                
+                            # Save the output probabilities for DenseCRF post-processing
+                            probs_dir = args.dest / f"iter{epoch:03d}" / 'probs'
+                            probs_dir.mkdir(parents=True, exist_ok=True)
+                            for i in range(pred_probs.shape[0]):
+                                stem = data['stems'][i]  # Unique identifier for the sample
+                                prob_path = probs_dir / f"{stem}.npy"
+                                np.save(prob_path, pred_probs[i].cpu().numpy())
+                                print(f"Saved probability map to {prob_path}")
 
                     global_sample_idx += batch_size  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
