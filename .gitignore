@@ -2,13 +2,13 @@
 data/*
 
 # But do not ignore the preprocessing folder inside data
-!data/preprocessing/
-!data/preprocessing/**
+!data/pre-processing/
+!data/pre-processing/**
 
 # Optionally, ignore any files you do not want to track inside preprocessing
 # For example, ignore .pyc files or temporary files in preprocessing
-data/preprocessing/*.pyc
-data/preprocessing/*.tmp
+data/pre-processing/*.pyc
+data/pre-processing/*.tmp
 !data/*.b3sum
 !data/*.sha256
 
