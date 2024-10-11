@@ -96,6 +96,7 @@ def plot_results(image, plottables, idx, evaluate_dir):
         axs_i += 1
 
     plt.savefig(evaluate_dir + "/predict_" + str(idx) + ".png")
+    plt.close()
 
 
 
