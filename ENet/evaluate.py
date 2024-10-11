@@ -170,7 +170,8 @@ def main():
 
 
             # Add metrics
-            # Compute Dice coefficient
+
+            # Compute Dice coefficients
             dice_normal = dice_coef(gt, pred_one_hot)
             metrics["dice_normal"].append(dice_normal[0].cpu().numpy())
 
@@ -179,7 +180,11 @@ def main():
                 metrics["dice_crf"].append(dice_crf[0].cpu().numpy())
 
             # TODO: add more metrics here in the same manner!! Then plot will take care of rest
+            # metrics["name of metric"].append(value)
+            # value should be a list in shape [score1, score2, ..., score5] where score1 is the score for class 1, etc.
 
+
+            # This is used for testing so that it doesn't take too long
             # if batch_idx > 10:
             #     break
 
