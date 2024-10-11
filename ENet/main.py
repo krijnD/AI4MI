@@ -54,7 +54,7 @@ datasets_params: dict[str, dict[str, Any]] = {}
 # K for the number of classes
 # Avoids the clases with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
-datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_train"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
 from torch.utils.data import ConcatDataset
@@ -76,12 +76,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
-<<<<<<< HEAD
-    B: int = datasets_params[args.dataset]['B']
-    root_dir = Path(__file__).resolve().parent.parent / "data" / args.dataset
-=======
     B: int = datasets_params[first_dataset]['B']
->>>>>>> 5f63ebb5ef351499406a553056e6943bcd038ccc
 
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
@@ -238,15 +233,6 @@ def runTraining(args):
                             save_images(predicted_class * mult,
                                         data['stems'],
                                         args.dest / f"iter{epoch:03d}" / method)
-                                
-                            # Save the output probabilities for DenseCRF post-processing
-                            probs_dir = args.dest / f"iter{epoch:03d}" / 'probs'
-                            probs_dir.mkdir(parents=True, exist_ok=True)
-                            for i in range(pred_probs.shape[0]):
-                                stem = data['stems'][i]  # Unique identifier for the sample
-                                prob_path = probs_dir / f"{stem}.npy"
-                                np.save(prob_path, pred_probs[i].cpu().numpy())
-                                print(f"Saved probability map to {prob_path}")
 
                     global_sample_idx += batch_size  # Keep in mind that _in theory_, each batch might have a different size
                     # For the DSC average: do not take the background class (0) into account:
