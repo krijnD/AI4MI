@@ -1,6 +1,6 @@
 # Ignore everything in the data folder
 data/*
-
+*/.DS_Store
 # But do not ignore the preprocessing folder inside data
 !data/pre-processing/
 !data/pre-processing/**
@@ -14,6 +14,7 @@ data/pre-processing/*.tmp
 
 ENet/results/
 VNet/results/
+ENet/volumes/
 volumes/
 ai4mi/
 bin/
