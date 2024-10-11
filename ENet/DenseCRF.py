@@ -1,84 +1,61 @@
 import os
 import numpy as np
-import cv2
-from pathlib import Path
 import pydensecrf.densecrf as dcrf
-from pydensecrf.utils import unary_from_softmax
+import pydensecrf.utils as utils
+import cv2
 
-
-def dense_crf_from_probabilities(image, probabilities):
+def dense_crf(image, output_probs):
     """
-    Apply DenseCRF to refine the segmentation probabilities.
-
-    Parameters:
-    - image: NumPy array of shape (H, W) or (H, W, 3), the original image.
-    - probabilities: NumPy array of shape (C, H, W), the predicted probabilities for each class.
-
-    Returns:
-    - refined_probabilities: NumPy array of shape (C, H, W), the refined probabilities after DenseCRF.
+    Apply DenseCRF to refine the ENet segmentation output.
+    
+    :param image: The original image (H, W, 3)
+    :param output_probs: The ENet output probabilities (C, H, W) where C is the number of classes
+    :return: Refined segmentation map (H, W)
     """
-    num_classes, H, W = probabilities.shape
+    # Prepare the DenseCRF model
+    H, W = image.shape[:2]
+    num_classes = output_probs.shape[0]
     d = dcrf.DenseCRF2D(W, H, num_classes)
 
-    # Prepare unary potentials
-    unary = -np.log(probabilities + 1e-8)  # Add epsilon to avoid log(0)
+    # Get unary potentials (negative log probabilities)
+    unary = -np.log(output_probs)
     unary = unary.reshape((num_classes, -1))
     d.setUnaryEnergy(unary)
 
+    # Add pairwise Gaussian potentials for spatial coherence
+    d.addPairwiseGaussian(sxy=3, compat=3, kernel=dcrf.DIAG_KERNEL, normalization=dcrf.NORMALIZE_SYMMETRIC)
 
-    # Add pairwise potentials
-    d.addPairwiseGaussian(sxy=3, compat=3)
-    d.addPairwiseBilateral(sxy=10, srgb=13, rgbim=image, compat=10)
+    # Add pairwise bilateral potentials for appearance-based consistency
+    d.addPairwiseBilateral(sxy=10, srgb=13, rgbim=image, compat=10, kernel=dcrf.DIAG_KERNEL, normalization=dcrf.NORMALIZE_SYMMETRIC)
 
     # Perform inference
     Q = d.inference(5)
-    refined_probabilities = np.array(Q).reshape((num_classes, H, W))
 
-    return refined_probabilities
+    # Get the most probable class for each pixel
+    refined_segmentation = np.argmax(Q, axis=0).reshape((H, W))
+    return refined_segmentation
 
+# Define paths
+base_path = "results/toy2/epoch5/ce/iter004/val"
+probs_path = "results/toy2/epoch5/ce/iter004/probs"  # Adjust if needed
+output_path = "results/toy2/epoch5/ce/iter004/refined_val"
+os.makedirs(output_path, exist_ok=True)
 
-def main():
-    print("Starting DenseCRF post-processing...")
-    # Define paths
-    images_dir = Path('results/toy2/epoch5/ce/iter004/val')  # Replace with your images directory
-    probs_dir = Path('results/toy2/epoch5/ce/iter004/probs')  # Replace with your probabilities directory
-    output_dir = Path('results/toy2/epoch5/ce/refined_probs')  # Replace with your desired output directory
-    print(f"Images directory: {images_dir.resolve()}")
-    print(f"Probabilities directory: {probs_dir.resolve()}")
-    print(f"Output directory: {output_dir.resolve()}")
-    if not images_dir.exists():
-        print(f"Images directory does not exist: {images_dir}")
-    if not probs_dir.exists():
-        print(f"Probabilities directory does not exist: {probs_dir}")
+# Loop through all PNG files in the folder
+for file_name in sorted(os.listdir(base_path)):
+    if file_name.endswith('.png'):
+        image_path = os.path.join(base_path, file_name)
+        image = cv2.imread(image_path)
 
+        # Load the corresponding probability map
+        prob_file_name = file_name.replace('.png', '.npy')
+        output_probs_path = os.path.join(probs_path, prob_file_name)
+        output_probs = np.load(output_probs_path)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    num_classes = 2  # Adjust based on your dataset (e.g., 2 for TOY2, 5 for SEGTHOR)
-    
-    # List all probability files
-    prob_files = sorted(probs_dir.glob('*.npy'))
-    
-    for prob_file in prob_files:
-        # Load the predicted probabilities
-        probabilities = np.load(prob_file)  # Shape: (C, H, W)
-        
-        # Load the corresponding original image
-        stem = prob_file.stem
-        image_file = images_dir / f"{stem}.png"  # Adjust the extension if necessary
-        image = cv2.imread(str(image_file))
-        if image is None:
-            print(f"Could not read original image: {image_file}")
-            continue
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        # Apply DenseCRF refinement
-        refined_probabilities = dense_crf_from_probabilities(image, probabilities)
-        
-        # Save the refined probabilities
-        output_file = output_dir / f"{stem}.npy"
-        np.save(output_file, refined_probabilities)
-        print(f"Refined probabilities saved: {output_file}")
+        # Apply DenseCRF post-processing
+        refined_segmentation = dense_crf(image, output_probs)
 
-if __name__ == '__main__':
-    main()
+        # Save the refined output
+        refined_output_path = os.path.join(output_path, file_name)
+        cv2.imwrite(refined_output_path, refined_segmentation * 255)
+        print(f"Refined image saved to {refined_output_path}")

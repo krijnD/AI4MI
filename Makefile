@@ -15,6 +15,12 @@ data/TOY2:
 	python gen_two_circles.py --dest $@_tmp -n 1000 100 -r 25 -wh 256 256
 	mv $@_tmp $@
 
+data/TOY2_noise:
+	rm -rf $@_tmp $@
+	python gen_two_circles.py --dest $@_tmp -n 1000 100 -r 25 -wh 256 256 --add_noise
+	mv $@_tmp $@
+
+
 
 # # Extraction and slicing for Segthor
 # data/segthor_train: data/segthor_train.zip
@@ -45,7 +51,6 @@ data/slice_segthor_train: data/segthor_train
 		--shape 256 256 --retain 10 --test_with_labels True
 	mv data/SEGTHOR_tmp data/SEGTHOR_train
 
-
 # Slicing segthor_affine (slicing only)
 data/slice_segthor_affine: data/segthor_affine
 	$(info $(green)Slicing data/segthor_affine using slice_segthor.py$(reset))
@@ -69,5 +74,16 @@ data/slice_segthor_noise: data/segthor_noise
 	python $(CFLAGS) slice_segthor.py --source_dir $^ --dest_dir data/SEGTHOR_noise_tmp \
 		--shape 256 256 --retain 10 --test_with_labels True
 	mv data/SEGTHOR_noise_tmp data/SEGTHOR_noise
+
+# # Combine all slices into SEGTHOR_all
+# data/slice_segthor_all: data/slice_segthor_train data/slice_segthor_affine data/slice_segthor_elastic data/slice_segthor_noise
+# 	$(info $(green)Combining all SEGTHOR slices into SEGTHOR_all$(reset))
+# 	rm -rf data/SEGTHOR_all_tmp data/SEGTHOR_all
+# 	mkdir data/SEGTHOR_all_tmp
+# 	cp -r data/SEGTHOR_train/* data/SEGTHOR_all_tmp
+# 	cp -r data/SEGTHOR_affine/* data/SEGTHOR_all_tmp
+# 	cp -r data/SEGTHOR_elastic/* data/SEGTHOR_all_tmp
+# 	cp -r data/SEGTHOR_noise/* data/SEGTHOR_all_tmp
+# 	mv data/SEGTHOR_all_tmp data/SEGTHOR_all
 
 
