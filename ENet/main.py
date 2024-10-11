@@ -57,14 +57,18 @@ datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
 datasets_params["SEGTHOR"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
+from torch.utils.data import ConcatDataset
+
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     # Networks and scheduler
     gpu: bool = args.gpu and torch.cuda.is_available()
     device = torch.device("cuda") if gpu else torch.device("cpu")
     print(f">> Picked {device} to run experiments")
 
-    K: int = datasets_params[args.dataset]['K']
-    net = datasets_params[args.dataset]['net'](1, K)
+    # Load parameters for the first dataset (assumes the same parameters for all datasets)
+    first_dataset = args.datasets[0]
+    K: int = datasets_params[first_dataset]['K']
+    net = datasets_params[first_dataset]['net'](1, K)
     net.init_weights()
     net.to(device)
 
@@ -72,46 +76,61 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
 
     # Dataset part
-    B: int = datasets_params[args.dataset]['B']
-    root_dir = Path("data") / args.dataset
+    B: int = datasets_params[first_dataset]['B']
 
     img_transform = transforms.Compose([
         lambda img: img.convert('L'),
         lambda img: np.array(img)[np.newaxis, ...],
-        lambda nd: np.clip((255 / nd.max()) * nd * 1.2, 0, 255), # TODO: I adjusted the brightness here by 1.2
-        lambda nd: nd / 255, 
+        lambda nd: np.clip((255 / nd.max()) * nd * 1.2, 0, 255),
+        lambda nd: nd / 255,
         lambda nd: torch.tensor(nd, dtype=torch.float32)
     ])
 
     gt_transform = transforms.Compose([
         lambda img: np.array(img)[...],
-        # The idea is that the classes are mapped to {0, 255} for binary cases
-        # {0, 85, 170, 255} for 4 classes
-        # {0, 51, 102, 153, 204, 255} for 6 classes
-        # Very sketchy but that works here and that simplifies visualization
-        lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,  # max <= 1
-        lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],  # Add one dimension to simulate batch
-        lambda t: class2one_hot(t, K=K), # Go from (1, H, W) to (1, K, H, W) in one hot encoding for every class
+        lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,
+        lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],
+        lambda t: class2one_hot(t, K=K),
         itemgetter(0)
     ])
 
+    # Create lists to store the datasets
+    train_datasets = []
+    val_datasets = []
 
-    train_set = SliceDataset('train',
-                             root_dir,
-                             img_transform=img_transform,
-                             gt_transform=gt_transform,
-                             debug=args.debug)
-    train_loader = DataLoader(train_set,
+    # Loop through all datasets and load them
+    for dataset_name in args.datasets:
+        root_dir = Path("data") / dataset_name
+
+        print(f"Loading dataset: {dataset_name} from {root_dir}")
+
+        # Load train and validation sets
+        train_set = SliceDataset('train',
+                                 root_dir,
+                                 img_transform=img_transform,
+                                 gt_transform=gt_transform,
+                                 debug=args.debug)
+        val_set = SliceDataset('val',
+                               root_dir,
+                               img_transform=img_transform,
+                               gt_transform=gt_transform,
+                               debug=args.debug)
+
+        # Add them to the list of datasets
+        train_datasets.append(train_set)
+        val_datasets.append(val_set)
+
+    # Concatenate all datasets using ConcatDataset
+    combined_train_set = ConcatDataset(train_datasets)
+    combined_val_set = ConcatDataset(val_datasets)
+
+    # Create DataLoaders
+    train_loader = DataLoader(combined_train_set,
                               batch_size=B,
                               num_workers=args.num_workers,
                               shuffle=True)
 
-    val_set = SliceDataset('val',
-                           root_dir,
-                           img_transform=img_transform,
-                           gt_transform=gt_transform,
-                           debug=args.debug)
-    val_loader = DataLoader(val_set,
+    val_loader = DataLoader(combined_val_set,
                             batch_size=B,
                             num_workers=args.num_workers,
                             shuffle=False)
@@ -122,7 +141,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
 
 def runTraining(args):
-    print(f">>> Setting up to train on {args.dataset} with {args.mode}")
+    print(f">>> Setting up to train on {args.datasets[0]} with {args.mode}")
     model, optimizer, device, train_loader, val_loader, num_classes = setup(args)
 
     # Choose the loss function based on args.loss
@@ -250,7 +269,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--epochs', default=200, type=int)
-    parser.add_argument('--dataset', default='TOY2', choices=datasets_params.keys())
+    parser.add_argument('--datasets', nargs='+', default=['TOY2'],
+                    help="List of datasets to use for training (can specify multiple).")
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
@@ -276,5 +296,6 @@ def main():
     runTraining(args)
 
 
+# test
 if __name__ == '__main__':
     main()
