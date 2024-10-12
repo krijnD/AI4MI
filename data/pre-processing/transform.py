@@ -220,6 +220,8 @@ Arguments:
                        If not specified, all transformations are applied by default.
     --no_combined:     Include this flag if you do NOT want to create the combined dataset
                        that merges the original and augmented data.
+     --combine_only:    Include this flag if you ONLY want to create the combined dataset
+                       using existing transformations. Steps 2-4 will be skipped.
 """
 
 # --- Main execution ---
@@ -230,6 +232,8 @@ if __name__ == "__main__":
                         help='Specify transformations to apply. If not specified, all transformations will be applied.')
     parser.add_argument('--no_combined', action='store_false', dest='create_combined_dataset', default=True,
                         help='Do not create combined dataset.')
+    parser.add_argument('--combine_only', action='store_true', default=False,
+                        help='Only create the combined dataset using existing transformations.')
     args = parser.parse_args()
 
     if args.transformations is None:
@@ -245,16 +249,20 @@ if __name__ == "__main__":
     segthor_train_dir = os.path.join(base_data_dir, 'segthor_train')  # Directory for transformed, corrected GTs
 
     # Step 1: Prepare segthor_original (only if it doesn't exist)
-    prepare_segthor_original(downloaded_data_dir, segthor_original_dir)
+    if not args.combine_only:
+        prepare_segthor_original(downloaded_data_dir, segthor_original_dir)
 
     # Step 2: Transform GT files and create segthor_train
-    transform_gt_files(segthor_original_dir, segthor_train_dir)
+    if not args.combine_only:
+        transform_gt_files(segthor_original_dir, segthor_train_dir)
 
     # Step 3: Create augmentation folders
-    create_augmentation_folders(base_data_dir, transformations)
+    if not args.combine_only:
+        create_augmentation_folders(base_data_dir, transformations)
 
     # Step 4: Apply augmentations from segthor_train
-    apply_augmentations(segthor_train_dir, base_data_dir, transformations=transformations)
+    if not args.combine_only:
+        apply_augmentations(segthor_train_dir, base_data_dir, transformations=transformations)
 
     # Step 5: Create combined dataset
     if args.create_combined_dataset:
