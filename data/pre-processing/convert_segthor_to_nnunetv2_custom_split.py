@@ -56,19 +56,35 @@ Steps:
 
 def create_splits(train_patient_names, num_splits, num_val_cases):
     """
-    Creates custom splits for cross-validation.
+    Creates custom splits for cross-validation, grouping augmented versions of the same patient.
     """
-    # Shuffle the patient names to ensure randomness
-    random.shuffle(train_patient_names)
+    from collections import defaultdict
+
+    # Group patient IDs by the base patient (without augmentation suffix)
+    patient_groups = defaultdict(list)
+    for p in train_patient_names:
+        # Assuming patient IDs are like 'patient1_affine', 'patient1_elastic'
+        base_id = p.split('_')[0]  # Adjust according to your naming convention
+        patient_groups[base_id].append(p)
+
+    # Create a list of base patient IDs
+    base_patient_ids = list(patient_groups.keys())
+    random.shuffle(base_patient_ids)
 
     splits = []
-    total_cases = len(train_patient_names)
+    total_cases = len(base_patient_ids)
     fold_size = total_cases // num_splits
 
     for i in range(num_splits):
-        val_indices = range(i * fold_size, (i + 1) * fold_size) if i < num_splits - 1 else range(i * fold_size, total_cases)
-        val_cases = [train_patient_names[idx] for idx in val_indices]
-        train_cases = [p for p in train_patient_names if p not in val_cases]
+        val_base_ids = base_patient_ids[i * fold_size: (i + 1) * fold_size]
+        val_cases = []
+        train_cases = []
+
+        for base_id in base_patient_ids:
+            if base_id in val_base_ids:
+                val_cases.extend(patient_groups[base_id])
+            else:
+                train_cases.extend(patient_groups[base_id])
 
         # Limit the number of validation cases if specified
         if num_val_cases and num_val_cases < len(val_cases):
