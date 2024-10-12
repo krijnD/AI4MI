@@ -143,7 +143,7 @@ def apply_augmentations(segthor_train_dir, base_data_dir):
 
     affine_transform = tio.RandomAffine(scales=(0.9, 1.1), degrees=10)
     elastic_transform = tio.RandomElasticDeformation(num_control_points=5, max_displacement=(20, 20, 20))
-    noise_transform = tio.RandomNoise(mean=0, std=0.1)
+    noise_transform = tio.RandomNoise(mean=0, std=0.08)
 
     for patient in patient_folders:
         ct_path = os.path.join(segthor_train_dir, 'train', patient, f'{patient}.nii.gz')
