@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 import nibabel as nib
-from scipy.ndimage import affine_transform
+from scipy.ndimage import affine_transform  # To apply affine matrix
 import torchio as tio
 import argparse
 
@@ -62,9 +62,9 @@ def transform_gt_files(segthor_original_dir, segthor_train_dir):
                      [0, 0, 1, 15],  
                      [0, 0, 0, 1]])
     DEG = 27
-    ϕ = - DEG / 180 * np.pi
-    RO = np.asarray([[np.cos(ϕ), -np.sin(ϕ), 0, 0],  
-                     [np.sin(ϕ),  np.cos(ϕ), 0, 0],  
+    phi = - DEG / 180 * np.pi
+    RO = np.asarray([[np.cos(phi), -np.sin(phi), 0, 0],  
+                     [np.sin(phi),  np.cos(phi), 0, 0],  
                      [     0,         0,     1, 0],  
                      [     0,         0,     0, 1]])
 
@@ -166,71 +166,17 @@ def apply_augmentations(segthor_train_dir, base_data_dir, transformations=None):
             for aug_type in transformations:
                 transform = transforms_dict[aug_type]
                 augmented = transform(subject)
-                
-                # Update patient ID and file names with transformation suffix
-                augmented_patient_id = f"{patient}_{aug_type}"
-                aug_patient_folder = os.path.join(output_folders[aug_type], augmented_patient_id)
-                os.makedirs(aug_patient_folder, exist_ok=True)
-                
-                ct_filename = f"{augmented_patient_id}.nii.gz"
-                gt_filename = 'GT.nii.gz'  # Label file remains the same
 
-                augmented['ct'].save(os.path.join(aug_patient_folder, ct_filename))
-                augmented['gt'].save(os.path.join(aug_patient_folder, gt_filename))
+                # Patient folder remains the same name
+                aug_patient_folder = os.path.join(output_folders[aug_type], patient)
+                os.makedirs(aug_patient_folder, exist_ok=True)
+
+                augmented['ct'].save(os.path.join(aug_patient_folder, f'{patient}.nii.gz'))
+                augmented['gt'].save(os.path.join(aug_patient_folder, 'GT.nii.gz'))
 
             print(f"Augmentations saved for {patient} in {', '.join(transformations)} folders.")
         else:
             print(f"CT or GT file not found for {patient}")
-
-# --- Step 5: Create combined dataset ---
-def create_combined_dataset(segthor_train_dir, base_data_dir, transformations):
-    """Combines original and augmented data into segthor_combined."""
-    combined_dir = os.path.join(base_data_dir, 'segthor_combined', 'train')
-    if os.path.exists(combined_dir):
-        print(f"Combined dataset directory already exists at {combined_dir}, recreating...")
-        shutil.rmtree(combined_dir)
-    os.makedirs(combined_dir)
-    print(f"Created combined dataset directory at {combined_dir}")
-
-    # Copy original data from segthor_train
-    patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
-    for patient in patient_folders:
-        source_folder = os.path.join(segthor_train_dir, 'train', patient)
-        dest_folder = os.path.join(combined_dir, patient)
-        if os.path.exists(source_folder):
-            if os.path.exists(dest_folder):
-                shutil.rmtree(dest_folder)
-            # Rename CT file to include patient ID
-            ct_source_path = os.path.join(source_folder, f"{patient}.nii.gz")
-            ct_dest_path = os.path.join(dest_folder, f"{patient}.nii.gz")
-            os.makedirs(dest_folder, exist_ok=True)
-            shutil.copy(ct_source_path, ct_dest_path)
-            # Copy GT file without renaming
-            gt_source_path = os.path.join(source_folder, 'GT.nii.gz')
-            gt_dest_path = os.path.join(dest_folder, 'GT.nii.gz')
-            shutil.copy(gt_source_path, gt_dest_path)
-            print(f"Copied original data for {patient} to combined dataset.")
-        else:
-            print(f"Original data not found for {patient} in segthor_train.")
-
-    # Copy augmented data
-    for aug_type in transformations:
-        aug_folder = os.path.join(base_data_dir, f'segthor_{aug_type}', 'train')
-        if os.path.exists(aug_folder):
-            for patient in patient_folders:
-                augmented_patient_id = f"{patient}_{aug_type}"
-                source_folder = os.path.join(aug_folder, augmented_patient_id)
-                dest_folder = os.path.join(combined_dir, augmented_patient_id)
-                if os.path.exists(source_folder):
-                    if os.path.exists(dest_folder):
-                        shutil.rmtree(dest_folder)
-                    shutil.copytree(source_folder, dest_folder)
-                    print(f"Copied {aug_type} data for {patient} to combined dataset.")
-                else:
-                    print(f"{aug_type} data not found for {patient} in {aug_folder}.")
-        else:
-            print(f"{aug_type} augmentation folder not found at {aug_folder}.")
-
 
 """
 Arguments:
@@ -239,7 +185,7 @@ Arguments:
                        If not specified, all transformations are applied by default.
     --no_combined:     Include this flag if you do NOT want to create the combined dataset
                        that merges the original and augmented data.
-     --combine_only:    Include this flag if you ONLY want to create the combined dataset
+    --combine_only:    Include this flag if you ONLY want to create the combined dataset
                        using existing transformations. Steps 2-4 will be skipped.
 """
 
@@ -249,10 +195,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process transformations.')
     parser.add_argument('--transformations', nargs='*', choices=['affine', 'elastic', 'noise'],
                         help='Specify transformations to apply. If not specified, all transformations will be applied.')
-    parser.add_argument('--no_combined', action='store_false', dest='create_combined_dataset', default=True,
-                        help='Do not create combined dataset.')
-    parser.add_argument('--combine_only', action='store_true', default=False,
-                        help='Only create the combined dataset using existing transformations.')
     args = parser.parse_args()
 
     if args.transformations is None:
@@ -268,21 +210,13 @@ if __name__ == "__main__":
     segthor_train_dir = os.path.join(base_data_dir, 'segthor_train')  # Directory for transformed, corrected GTs
 
     # Step 1: Prepare segthor_original (only if it doesn't exist)
-    if not args.combine_only:
-        prepare_segthor_original(downloaded_data_dir, segthor_original_dir)
+    prepare_segthor_original(downloaded_data_dir, segthor_original_dir)
 
     # Step 2: Transform GT files and create segthor_train
-    if not args.combine_only:
-        transform_gt_files(segthor_original_dir, segthor_train_dir)
+    transform_gt_files(segthor_original_dir, segthor_train_dir)
 
     # Step 3: Create augmentation folders
-    if not args.combine_only:
-        create_augmentation_folders(base_data_dir, transformations)
+    create_augmentation_folders(base_data_dir, transformations)
 
     # Step 4: Apply augmentations from segthor_train
-    if not args.combine_only:
-        apply_augmentations(segthor_train_dir, base_data_dir, transformations=transformations)
-
-    # Step 5: Create combined dataset
-    if args.create_combined_dataset:
-        create_combined_dataset(segthor_train_dir, base_data_dir, transformations)
+    apply_augmentations(segthor_train_dir, base_data_dir, transformations=transformations)
