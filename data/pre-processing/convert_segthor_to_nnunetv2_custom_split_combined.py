@@ -93,7 +93,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Get base directories from arguments
-    base = '/path/to/AI4MI/data'  # Adjust this path as needed
+    base = '/home/kdignumsepu/AI4MI/data' 
     nnUNet_raw = args.nnUNet_raw
     nnUNet_preprocessed = args.nnUNet_preprocessed
 
