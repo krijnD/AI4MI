@@ -5,12 +5,6 @@ import argparse
 import os
 import random
 
-from collections import OrderedDict
-from batchgenerators.utilities.file_and_folder_operations import *
-import shutil
-import argparse
-import os
-import random
 
 """
 This scfript converts the SEGTHOR dataset (and or variations) into nnUNetv2 format with custom data splits.
@@ -54,62 +48,52 @@ Steps:
 
 """
 
-def create_splits(train_patient_names, num_splits, num_val_cases):
+def create_splits(patient_id_mapping, remaining_patient_names, num_splits, num_val_cases):
     """
     Creates custom splits for cross-validation, grouping augmented versions of the same patient.
     """
-    from collections import defaultdict
-
-    # Group patient IDs by the base patient (without augmentation suffix)
-    patient_groups = defaultdict(list)
-    for p in train_patient_names:
-        # Assuming patient IDs are like 'patient1_affine', 'patient1_elastic'
-        base_id = p.split('_')[0]  # Adjust according to your naming convention
-        patient_groups[base_id].append(p)
-
-    # Create a list of base patient IDs
-    base_patient_ids = list(patient_groups.keys())
+    base_patient_ids = [base_id for base_id in patient_id_mapping.keys() if any(aug_id in remaining_patient_names for aug_id in patient_id_mapping[base_id])]
     random.shuffle(base_patient_ids)
-
+    
     splits = []
     total_cases = len(base_patient_ids)
     fold_size = total_cases // num_splits
-
+    
     for i in range(num_splits):
         val_base_ids = base_patient_ids[i * fold_size: (i + 1) * fold_size]
         val_cases = []
         train_cases = []
-
+        
         for base_id in base_patient_ids:
+            augmented_ids = patient_id_mapping[base_id]
             if base_id in val_base_ids:
-                val_cases.extend(patient_groups[base_id])
+                val_cases.extend([aug_id for aug_id in augmented_ids if aug_id in remaining_patient_names])
             else:
-                train_cases.extend(patient_groups[base_id])
-
+                train_cases.extend([aug_id for aug_id in augmented_ids if aug_id in remaining_patient_names])
+        
         # Limit the number of validation cases if specified
         if num_val_cases and num_val_cases < len(val_cases):
             val_cases = val_cases[:num_val_cases]
-
+        
         splits.append({'train': train_cases, 'val': val_cases})
-
+    
     return splits
 
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Convert SEGTHOR data directly to nnUNetv2 format with custom splits.")
-    parser.add_argument('--data_dir', type=str, required=True, help="Path to the SEGTHOR data directory.")
+    parser = argparse.ArgumentParser(description="Convert multiple SEGTHOR augmentations to nnUNetv2 format with custom splits.")
+    parser.add_argument('--data_dirs', type=str, nargs='+', required=True, help="List of paths to the SEGTHOR data directories.")
+    parser.add_argument('--augmentations', type=str, nargs='+', required=True, help="List of augmentation names corresponding to data_dirs.")
     parser.add_argument('--nnUNet_raw', type=str, required=True, help="Path to nnUNet raw data directory.")
     parser.add_argument('--nnUNet_preprocessed', type=str, required=True, help="Path to nnUNet preprocessed data directory.")
-    parser.add_argument('--num_splits', type=int, default=5, help="Number of splits for cross-validation.")
+    parser.add_argument('--num_splits', type=int, default=1, help="Number of splits for cross-validation.")
     parser.add_argument('--num_val_cases', type=int, default=5, help="Number of validation cases per split.")
     parser.add_argument('--num_test_cases', type=int, default=5, help="Number of test cases.")
     parser.add_argument('--dataset_id', type=int, required=True, help="Unique dataset ID.")
-    parser.add_argument('--dataset_name', type=str, required=True, help="Dataset name (e.g., SegTHOR_Original).")
+    parser.add_argument('--dataset_name', type=str, required=True, help="Dataset name (e.g., SegTHOR_Combined).")
     args = parser.parse_args()
 
     # Get base directories from arguments
-    base = args.data_dir
+    base = '/path/to/AI4MI/data'  # Adjust this path as needed
     nnUNet_raw = args.nnUNet_raw
     nnUNet_preprocessed = args.nnUNet_preprocessed
 
@@ -129,33 +113,56 @@ if __name__ == "__main__":
     maybe_mkdir_p(labelstr)
     maybe_mkdir_p(labelsts)
 
-    all_patient_names = subfolders(join(base, "train"), join=False)
-    all_patient_names.sort()
+    all_patient_names = []
+    patient_id_mapping = {}  # Mapping from base patient ID to augmented patient IDs
 
-    # Randomly select test patients
+    for data_dir, augmentation in zip(args.data_dirs, args.augmentations):
+        data_dir = join(base, data_dir)
+        patient_names = subfolders(join(data_dir, "train"), join=False)
+        patient_names.sort()
+        
+        for p in patient_names:
+            augmented_patient_id = f"{p}_{augmentation}"
+            curr = join(data_dir, "train", p)
+            label_file = join(curr, "GT.nii.gz")
+            image_file = join(curr, f"{p}.nii.gz")
+            
+            # Copy images and labels
+            shutil.copy(image_file, join(imagestr, augmented_patient_id + "_0000.nii.gz"))
+            shutil.copy(label_file, join(labelstr, augmented_patient_id + ".nii.gz"))
+            
+            all_patient_names.append(augmented_patient_id)
+            
+            # Map base patient ID to augmented IDs
+            if p not in patient_id_mapping:
+                patient_id_mapping[p] = []
+            patient_id_mapping[p].append(augmented_patient_id)
+
+    # Randomly select test patients from base patient IDs
+    base_patient_ids = list(patient_id_mapping.keys())
     random.seed(1234)  # For reproducibility
-    test_patient_names = random.sample(all_patient_names, args.num_test_cases)
+    test_base_patient_ids = random.sample(base_patient_ids, args.num_test_cases)
+
+    # Collect augmented patient IDs for test set
+    test_patient_names = []
+    for base_id in test_base_patient_ids:
+        augmented_ids = patient_id_mapping[base_id]
+        test_patient_names.extend(augmented_ids)
+
+    # Remaining patient names for training and validation
     remaining_patient_names = [p for p in all_patient_names if p not in test_patient_names]
 
-    # Process training and validation data
-    train_patient_names = []
-    for p in remaining_patient_names:
-        curr = join(base, "train", p)
-        label_file = join(curr, "GT.nii.gz")
-        image_file = join(curr, p + ".nii.gz")
-        shutil.copy(image_file, join(imagestr, p + "_0000.nii.gz"))
-        shutil.copy(label_file, join(labelstr, p + ".nii.gz"))
-        train_patient_names.append(p)
-
-    # Process test data
+    # Move test data to imagesTs and labelsTs
     for p in test_patient_names:
-        curr = join(base, "train", p)
-        image_file = join(curr, p + ".nii.gz")
-        label_file = join(curr, "GT.nii.gz")
-        # Copy images to imagesTs
-        shutil.copy(image_file, join(imagests, p + "_0000.nii.gz"))
-        # Copy labels to labelsTs
-        shutil.copy(label_file, join(labelsts, p + ".nii.gz"))
+        # Move images
+        src_image = join(imagestr, p + "_0000.nii.gz")
+        dst_image = join(imagests, p + "_0000.nii.gz")
+        shutil.move(src_image, dst_image)
+        
+        # Move labels
+        src_label = join(labelstr, p + ".nii.gz")
+        dst_label = join(labelsts, p + ".nii.gz")
+        shutil.move(src_label, dst_label)
 
     # Create the dataset JSON for nnUNetv2
     dataset_json = OrderedDict()
@@ -175,7 +182,7 @@ if __name__ == "__main__":
     }
 
     # Specify the number of training cases
-    dataset_json['numTraining'] = len(train_patient_names)
+    dataset_json['numTraining'] = len(remaining_patient_names)
 
     # Specify the file ending
     dataset_json['file_ending'] = ".nii.gz"
@@ -191,7 +198,7 @@ if __name__ == "__main__":
         print(f"Preprocessed data not found at {preprocessed_folder}. Please run nnUNetv2_plan_and_preprocess first.")
     else:
         # Create custom splits
-        splits = create_splits(train_patient_names, args.num_splits, args.num_val_cases)
+        splits = create_splits(patient_id_mapping, remaining_patient_names, args.num_splits, args.num_val_cases)
 
         # Path to the splits file in the preprocessed data directory
         splits_file = join(preprocessed_folder, 'splits_final.json')
