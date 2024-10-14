@@ -4,6 +4,7 @@ import numpy as np
 import nibabel as nib
 from scipy.ndimage import affine_transform  # To apply affine matrix
 import torchio as tio
+import argparse
 
 # Function to compute the Dice Coefficient
 def compute_dice_coefficient(mask1, mask2):
@@ -31,9 +32,11 @@ def prepare_segthor_original(downloaded_data_dir, segthor_original_dir):
         print(f"segthor_original already exists. Skipping this step.")
 
 # --- Step 2: Create augmentation folders ---
-def create_augmentation_folders(base_data_dir):
+def create_augmentation_folders(base_data_dir, transformations=None):
     """Creates augmentation folders with train subfolders."""
-    new_folders = ['segthor_affine', 'segthor_elastic', 'segthor_noise']
+    if transformations is None:
+        transformations = ['affine', 'elastic', 'noise']
+    new_folders = [f'segthor_{t}' for t in transformations]
     
     for folder in new_folders:
         folder_path = os.path.join(base_data_dir, folder, 'train')
@@ -52,16 +55,16 @@ def transform_gt_files(segthor_original_dir, segthor_train_dir):
         print(f"Created segthor_train directory.")
 
     patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
-    
+
     # Transformation parameters
     TR = np.asarray([[1, 0, 0, 50],
                      [0,  1, 0, 40],  
                      [0, 0, 1, 15],  
                      [0, 0, 0, 1]])
     DEG = 27
-    ϕ = - DEG / 180 * np.pi
-    RO = np.asarray([[np.cos(ϕ), -np.sin(ϕ), 0, 0],  
-                     [np.sin(ϕ),  np.cos(ϕ), 0, 0],  
+    phi = - DEG / 180 * np.pi
+    RO = np.asarray([[np.cos(phi), -np.sin(phi), 0, 0],  
+                     [np.sin(phi),  np.cos(phi), 0, 0],  
                      [     0,         0,     1, 0],  
                      [     0,         0,     0, 1]])
 
@@ -131,8 +134,11 @@ def transform_gt_files(segthor_original_dir, segthor_train_dir):
             print(f"GT file not found for {patient}")
 
 # --- Step 4: Apply augmentations and save in correct folders ---
-def apply_augmentations(segthor_train_dir, base_data_dir):
-    """Applies augmentations to the transformed data in segthor_train."""
+def apply_augmentations(segthor_train_dir, base_data_dir, transformations=None):
+    """Applies specified augmentations to the transformed data in segthor_train."""
+    if transformations is None:
+        transformations = ['affine', 'elastic', 'noise']  # Default transformations
+
     output_folders = {
         'affine': os.path.join(base_data_dir, 'segthor_affine', 'train'),
         'elastic': os.path.join(base_data_dir, 'segthor_elastic', 'train'),
@@ -141,9 +147,12 @@ def apply_augmentations(segthor_train_dir, base_data_dir):
 
     patient_folders = [f'Patient_{i:02d}' for i in range(1, 41)]
 
-    affine_transform = tio.RandomAffine(scales=(0.9, 1.1), degrees=10)
-    elastic_transform = tio.RandomElasticDeformation(num_control_points=5, max_displacement=(20, 20, 20))
-    noise_transform = tio.RandomNoise(mean=0, std=0.1)
+    # Define the transformations
+    transforms_dict = {
+        'affine': tio.RandomAffine(scales=(0.9, 1.1), degrees=10),
+        'elastic': tio.RandomElasticDeformation(num_control_points=5, max_displacement=(20, 20, 20)),
+        'noise': tio.RandomNoise(mean=0, std=0.08)
+    }
 
     for patient in patient_folders:
         ct_path = os.path.join(segthor_train_dir, 'train', patient, f'{patient}.nii.gz')
@@ -154,24 +163,45 @@ def apply_augmentations(segthor_train_dir, base_data_dir):
             gt_image = tio.LabelMap(gt_path)
             subject = tio.Subject(ct=ct_image, gt=gt_image)
 
-            for aug_type, transform, folder_key in zip(
-                    ['affine', 'elastic', 'noise'],
-                    [affine_transform, elastic_transform, noise_transform],
-                    ['affine', 'elastic', 'noise']):
-
+            for aug_type in transformations:
+                transform = transforms_dict[aug_type]
                 augmented = transform(subject)
-                aug_patient_folder = os.path.join(output_folders[folder_key], patient)
+
+                # Patient folder remains the same name
+                aug_patient_folder = os.path.join(output_folders[aug_type], patient)
                 os.makedirs(aug_patient_folder, exist_ok=True)
 
                 augmented['ct'].save(os.path.join(aug_patient_folder, f'{patient}.nii.gz'))
                 augmented['gt'].save(os.path.join(aug_patient_folder, 'GT.nii.gz'))
 
-            print(f"Augmentations saved for {patient} in affine, elastic, and noise folders.")
+            print(f"Augmentations saved for {patient} in {', '.join(transformations)} folders.")
         else:
             print(f"CT or GT file not found for {patient}")
 
+"""
+Arguments:
+    --transformations: Specify one or more transformations to apply.
+                       Choices are 'affine', 'elastic', and 'noise'.
+                       If not specified, all transformations are applied by default.
+    --no_combined:     Include this flag if you do NOT want to create the combined dataset
+                       that merges the original and augmented data.
+    --combine_only:    Include this flag if you ONLY want to create the combined dataset
+                       using existing transformations. Steps 2-4 will be skipped.
+"""
+
 # --- Main execution ---
 if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Process transformations.')
+    parser.add_argument('--transformations', nargs='*', choices=['affine', 'elastic', 'noise'],
+                        help='Specify transformations to apply. If not specified, all transformations will be applied.')
+    args = parser.parse_args()
+
+    if args.transformations is None:
+        transformations = ['affine', 'elastic', 'noise']
+    else:
+        transformations = args.transformations
+
     # Since we're running from 'AI4MI/data/pre-processing', we go up one level to access 'AI4MI/data'
     base_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -186,7 +216,7 @@ if __name__ == "__main__":
     transform_gt_files(segthor_original_dir, segthor_train_dir)
 
     # Step 3: Create augmentation folders
-    create_augmentation_folders(base_data_dir)
+    create_augmentation_folders(base_data_dir, transformations)
 
     # Step 4: Apply augmentations from segthor_train
-    apply_augmentations(segthor_train_dir, base_data_dir)
+    apply_augmentations(segthor_train_dir, base_data_dir, transformations=transformations)
