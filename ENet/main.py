@@ -110,15 +110,18 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                                  img_transform=img_transform,
                                  gt_transform=gt_transform,
                                  debug=args.debug)
-        val_set = SliceDataset('val',
-                               root_dir,
-                               img_transform=img_transform,
-                               gt_transform=gt_transform,
-                               debug=args.debug)
+
+        if dataset_name == "SEGTHOR":
+            val_set = SliceDataset('val',
+                                   root_dir,
+                                   img_transform=img_transform,
+                                   gt_transform=gt_transform,
+                                   debug=args.debug)
+            val_datasets.append(val_set)
 
         # Add them to the list of datasets
         train_datasets.append(train_set)
-        val_datasets.append(val_set)
+
 
     # Concatenate all datasets using ConcatDataset
     combined_train_set = ConcatDataset(train_datasets)

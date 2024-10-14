@@ -27,9 +27,45 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
+
+custom_palette = {
+    'roze': '#eb8fd8',
+    'groen': '#b9d4b4',
+    'paars': '#ba94e9',
+    'blue': '#4C8BE2',
+    'orange': '#E27A3F',
+    'grey_light': '#1F3240',
+    'grey_dark': '#16242F'
+}
+
+def set_custom_dark_theme():
+    # Set a dark background
+    plt.style.use('dark_background')
+
+    # Customize the seaborn plot with your colors
+    sns.set_context('notebook', font_scale=1.2)
+    sns.set_style({
+        'axes.facecolor': custom_palette['grey_dark'],  # Background of the plot
+        'axes.edgecolor': 'white',  # Edge color of the plot
+        'axes.labelcolor': 'white',  # Axis labels color
+        'xtick.color': 'white',  # X-tick color
+        'ytick.color': 'white',  # Y-tick color
+        'grid.color': custom_palette['grey_light'],  # Gridline color
+        'figure.facecolor': custom_palette['grey_dark'],  # Background of the figure
+        'text.color': 'white'  # Color of text in the plot
+    })
+
+    # Set the color palette for seaborn plots (for lines)
+    sns.set_palette([custom_palette['roze'],
+                     custom_palette['groen'],
+                     custom_palette['paars'],
+                     custom_palette['blue'],
+                     custom_palette['orange']])
 
 def run(args: argparse.Namespace) -> None:
+    set_custom_dark_theme()
     metrics: np.ndarray = np.load(args.metric_file)
     match metrics.ndim:
         case 2:
