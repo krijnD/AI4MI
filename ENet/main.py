@@ -47,7 +47,7 @@ from utils import (Dcm,
                    dice_coef,
                    save_images)
 
-from losses import CrossEntropy, DiceLoss, CombinedLoss
+from losses import CrossEntropy, DiceLoss, CombinedLoss, FocalLoss, TverskyLoss
 
 
 datasets_params: dict[str, dict[str, Any]] = {}
@@ -79,12 +79,12 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     B: int = datasets_params[first_dataset]['B']
 
     img_transform = transforms.Compose([
-        lambda img: img.convert('L'),
-        lambda img: np.array(img)[np.newaxis, ...],
-        lambda nd: np.clip((255 / nd.max()) * nd * 1.2, 0, 255),
-        lambda nd: nd / 255,
-        lambda nd: torch.tensor(nd, dtype=torch.float32)
-    ])
+    lambda img: img.convert('L'),  # Convert to grayscale
+    lambda img: np.array(img)[np.newaxis, ...],  # Add channel dimension
+    lambda nd: np.clip((255 / (nd.max() + 1e-5)) * nd * 1.2, 0, 255),  # Handle zero max value
+    lambda nd: nd / 255,  # Normalize to [0, 1]
+    lambda nd: torch.tensor(nd, dtype=torch.float32)
+])
 
     gt_transform = transforms.Compose([
         lambda img: np.array(img)[...],
@@ -111,7 +111,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                                  gt_transform=gt_transform,
                                  debug=args.debug)
 
-        if dataset_name == "SEGTHOR":
+        if dataset_name == "SEGTHOR_train":
             val_set = SliceDataset('val',
                                    root_dir,
                                    img_transform=img_transform,
@@ -155,22 +155,72 @@ def runTraining(args):
             loss_fn = CombinedLoss(idk=[0, 1, 3, 4], weight_ce=args.weight_ce, weight_dice=args.weight_dice)
         else:
             raise ValueError(args.mode, args.dataset)
-    elif args.loss == 'DiceLoss':  # Changed from 'if' to 'elif'
+    elif args.loss == 'DiceLoss':
         if args.mode == "full":
-            loss_fn = DiceLoss(idk=list(range(num_classes)))  # Supervise both background and foreground
+            loss_fn = DiceLoss(idk=list(range(num_classes)))
         elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
-            loss_fn = DiceLoss(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+            loss_fn = DiceLoss(idk=[0, 1, 3, 4])
         else:
             raise ValueError(args.mode, args.dataset)
     elif args.loss == 'CrossEntropy':
         if args.mode == "full":
-            loss_fn = CrossEntropy(idk=list(range(num_classes)))  # Supervise both background and foreground
+            loss_fn = CrossEntropy(idk=list(range(num_classes)))
         elif args.mode in ["partial"] and args.dataset in ['SEGTHOR', 'SEGTHOR_STUDENTS']:
-            loss_fn = CrossEntropy(idk=[0, 1, 3, 4])  # Do not supervise the heart (class 2)
+            loss_fn = CrossEntropy(idk=[0, 1, 3, 4])
         else:
             raise ValueError(args.mode, args.dataset)
-    else:
-        raise ValueError(f"Unknown loss function {args.loss}")
+    elif args.loss == 'FocalLoss':
+    # Process args.alpha
+        if args.focal_alpha is not None:
+            if len(args.focal_alpha) == 1:
+                # Single alpha value provided, replicate it for all classes
+                alpha = [args.focal_alpha[0]] * num_classes
+            elif len(args.focal_alpha) == num_classes:
+                # Alpha values provided for each class
+                alpha = args.focal_alpha
+            else:
+                raise ValueError(f"The number of alpha values ({len(args.focal_alpha)}) does not match the number of classes ({num_classes}).")
+        else:
+            # Default alpha values if none are provided
+            alpha = [0.25] * num_classes  # Or any default value you prefer
+
+        if args.mode == "full":
+            idk = list(range(num_classes))
+            loss_fn = FocalLoss(idk=idk, alpha=alpha, gamma=args.focal_gamma)
+        elif args.mode in ["partial"] and any(ds in ['SEGTHOR', 'SEGTHOR_STUDENTS'] for ds in args.datasets):
+            idk = [0, 1, 3, 4]
+            # Select alpha values corresponding to the supervised classes
+            alpha = [alpha[i] for i in idk]
+            loss_fn = FocalLoss(idk=idk, alpha=alpha, gamma=args.focal_gamma)
+        else:
+            raise ValueError(f"Unsupported mode {args.mode} for datasets {args.datasets}")
+        
+    elif args.loss == 'TverskyLoss':
+        # Process tversky_alpha and tversky_beta
+        if len(args.tversky_alpha) == 1:
+            alpha = [args.tversky_alpha[0]] * num_classes
+        elif len(args.tversky_alpha) == num_classes:
+            alpha = args.tversky_alpha
+        else:
+            raise ValueError(f"The number of tversky_alpha values ({len(args.tversky_alpha)}) does not match the number of classes ({num_classes}).")
+
+        if len(args.tversky_beta) == 1:
+            beta = [args.tversky_beta[0]] * num_classes
+        elif len(args.tversky_beta) == num_classes:
+            beta = args.tversky_beta
+        else:
+            raise ValueError(f"The number of tversky_beta values ({len(args.tversky_beta)}) does not match the number of classes ({num_classes}).")
+
+        if args.mode == "full":
+            loss_fn = TverskyLoss(idk=list(range(num_classes)), alpha=alpha, beta=beta)
+        elif args.mode in ["partial"] and any(ds in ['SEGTHOR', 'SEGTHOR_STUDENTS'] for ds in args.datasets):
+            loss_fn = TverskyLoss(idk=[0, 1, 3, 4], alpha=alpha, beta=beta)
+        else:
+            raise ValueError(f"Unsupported mode {args.mode} for datasets {args.datasets}")
+
+
+
+
 
     # Notice one has the length of the _loader_, and the other one of the _dataset_
     log_loss_tra: Tensor = torch.zeros((args.epochs, len(train_loader)))
@@ -273,7 +323,7 @@ def main():
 
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--datasets', nargs='+', default=['TOY2'],
-                    help="List of datasets to use for training (can specify multiple).")
+                        help="List of datasets to use for training (can specify multiple).")
     parser.add_argument('--mode', default='full', choices=['partial', 'full'])
     parser.add_argument('--dest', type=Path, required=True,
                         help="Destination directory to save the results (predictions and weights).")
@@ -283,14 +333,29 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help="Keep only a fraction (10 samples) of the datasets, "
                              "to test the logic around epochs and logging easily.")
-    # Add the new --loss argument
-    parser.add_argument('--loss', default='CrossEntropy', choices=['CrossEntropy', 'DiceLoss', 'CombinedLoss'],
+    
+    # Loss function argument
+    parser.add_argument('--loss', default='CrossEntropy', 
+                        choices=['CrossEntropy', 'DiceLoss', 'CombinedLoss', 'FocalLoss', 'TverskyLoss'],
                         help="Loss function to use during training.")
-    # Add optional arguments for loss weights
+
+    # Add optional arguments for loss weights in Combined Loss
     parser.add_argument('--weight_ce', type=float, default=1.0,
                         help="Weight for Cross Entropy loss in CombinedLoss.")
     parser.add_argument('--weight_dice', type=float, default=1.0,
                         help="Weight for Dice loss in CombinedLoss.")
+    
+    # Focal Loss parameters
+    parser.add_argument('--focal_alpha', nargs='+', type=float, default=[1.0],
+                        help="Alpha values for Focal Loss (one value per class, or one value applied to all classes).")
+    parser.add_argument('--focal_gamma', type=float, default=2.0,
+                        help="Gamma parameter for Focal Loss.")
+    
+    # Tversky Loss parameters
+    parser.add_argument('--tversky_alpha', nargs='+', type=float, default=[0.5],
+                        help="Alpha values for Tversky Loss (one value per class, or one value applied to all classes).")
+    parser.add_argument('--tversky_beta', nargs='+', type=float, default=[0.5],
+                        help="Beta values for Tversky Loss (one value per class, or one value applied to all classes).")
 
     args = parser.parse_args()
 
