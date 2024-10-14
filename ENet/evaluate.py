@@ -123,7 +123,7 @@ def make_eval_dir(args):
         os.makedirs(parent_dir)
 
     current_time = datetime.now().strftime("%m-%d(%H.%M)")
-    directory_name = f"evaluation_{args.model_name}_{current_time}"
+    directory_name = f"{args.model_name}_{current_time}"
     directory_path = os.path.join(parent_dir, directory_name)
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
