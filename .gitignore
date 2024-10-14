@@ -14,7 +14,7 @@ data/pre-processing/*.tmp
 
 ENet/results/
 VNet/results/
-ENet/evaluation
+ENet/evaluation/
 ENet/volumes/
 volumes/
 ai4mi/
