@@ -9,8 +9,11 @@ from tqdm import tqdm
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import os
 from pathlib import Path
 from operator import itemgetter
 from DenseCRF import dense_crf_from_probabilities
@@ -18,6 +21,7 @@ import cv2
 
 # Import your custom modules (make sure these are accessible in your notebook)
 from ENet import ENet
+from metrics import compute_hausdorff_distance
 from dataset import SliceDataset
 from utils import dice_coef, probs2one_hot, probs2class, class2one_hot
 
@@ -97,8 +101,6 @@ def plot_results(image, plottables, idx, evaluate_dir):
 
     plt.savefig(evaluate_dir + "/predict_" + str(idx) + ".png")
     plt.close()
-
-
 
 
 def crf_post_processing(image, probs):
@@ -182,40 +184,60 @@ def main():
             # TODO: add more metrics here in the same manner!! Then plot will take care of rest
             # metrics["name of metric"].append(value)
             # value should be a list in shape [score1, score2, ..., score5] where score1 is the score for class 1, etc.
+            hausdorff = compute_hausdorff_distance(pred_one_hot, gt)
+            # print(hausdorff)
+            metrics["Hausdorff distance"].append(hausdorff)
 
-
-            # This is used for testing so that it doesn't take too long
+            # # This is used for testing so that it doesn't take too long
             # if batch_idx > 10:
             #     break
 
+    # Set Seaborn style
+    sns.set(style="whitegrid")
 
-    # Save metrics
     class_names = ['Background', 'Esophagus', 'Heart', 'Trachea', 'Aorta']
+
+    # Define colors for each class (excluding background)
+    colors = ['lightblue', 'lightgreen', 'lightpink', 'lightyellow']
+
     with open(os.path.join(evaluate_dir, "metrics.txt"), 'w') as f:
         for name_score, values in metrics.items():
-
-            # Print and write scores
-            scores = np.array(values)
+            scores = np.array(values)  # Shape: (num_samples, num_classes)
             score_per_class = scores.mean(axis=0)
             print(f"Mean {name_score} per class:")
             f.write(f"Mean {name_score} per class:\n")
             for i, score in enumerate(score_per_class):
-                f.write(f"Class {class_names[i]}: {score}\n")
-                print(f"Class {class_names[i]}: {score}")
+                f.write(f"Class {class_names[i]}: {score:.4f}\n")
+                print(f"Class {class_names[i]}: {score:.4f}")
+            f.write(f"Mean : {score_per_class.mean()}")
+            print(f"Mean : {score_per_class.mean()}")
             f.write("\n")
             print("\n")
 
-            # Create boxplot
-            data_to_plot = [scores[:, i] for i in range(len(class_names))]
+            # Skip the background class using slicing
+            data_to_plot = [scores[:, i] for i in range(1, len(class_names))]
 
-            plt.figure()
-            plt.boxplot(data_to_plot, patch_artist=True)
-            plt.xticks(range(1, len(class_names) + 1), class_names, rotation=45)
-            plt.title(f"{name_score} per class")
-            plt.ylabel(name_score)
+            # Prepare data in long-form DataFrame for seaborn
+            data = []
+            for i, class_name in enumerate(class_names[1:]):
+                for value in data_to_plot[i]:
+                    data.append({'Class': class_name, name_score: value})
+
+            df = pd.DataFrame(data)
+
+            plt.figure(figsize=(8, 6))
+            sns.boxplot(x='Class', y=name_score, data=df, palette=colors)
+            sns.stripplot(x='Class', y=name_score, data=df, color='black', alpha=0.5, jitter=0.2)
+
+            plt.title(f"{name_score} per class (excluding Background)", fontsize=14)
+            plt.ylabel(name_score, fontsize=12)
+            plt.xlabel('Class', fontsize=12)
+
+            plt.xticks(rotation=45, fontsize=12)
             plt.tight_layout()
-            plt.savefig(os.path.join(evaluate_dir, f"{name_score}_per_class.png"))
+            plt.savefig(os.path.join(evaluate_dir, f"{name_score}_per_class.png"), dpi=300)
             plt.close()
+
 
 if __name__ == "__main__":
     main()
