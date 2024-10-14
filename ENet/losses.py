@@ -24,6 +24,9 @@
 
 
 from torch import einsum
+import numpy as np
+import torch
+
 
 from utils import simplex, sset
 
@@ -86,3 +89,92 @@ class CombinedLoss():
         loss_dice = self.dice_loss(pred_softmax, weak_target)
         total_loss = self.weight_ce * loss_ce + self.weight_dice * loss_dice
         return total_loss
+    
+class FocalLoss():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']
+        self.alpha = kwargs.get('alpha', None)  # Should be a tensor or list
+        self.gamma = kwargs.get('gamma', 2.0)
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        pred = pred_softmax[:, self.idk, ...]
+        target = weak_target[:, self.idk, ...].float()
+
+        epsilon = 1e-10
+        pred = pred.clamp(min=epsilon, max=1.0 - epsilon)
+
+        # Compute log probabilities
+        log_p = pred.log()
+
+        # Compute focal loss
+        ce_loss = - (target * log_p)  # Cross entropy
+        p_t = pred * target + (1 - pred) * (1 - target)  # Probabilities of target classes
+        focal_weight = (1 - p_t) ** self.gamma
+
+        if self.alpha is not None:
+            if isinstance(self.alpha, (list, np.ndarray)):
+                # Reshape alpha to match the dimensions of pred and target
+                alpha = torch.tensor(self.alpha).to(pred.device).view(1, len(self.alpha), 1, 1)
+            else:
+                alpha = self.alpha
+            # Broadcast alpha to match target and pred shape
+            alpha_t = alpha * target + (1 - alpha) * (1 - target)
+            focal_weight = focal_weight * alpha_t
+
+        loss = focal_weight * ce_loss
+        loss = loss.sum() / (target.sum() + epsilon)
+
+        return loss
+
+    
+class TverskyLoss():
+    def __init__(self, **kwargs):
+        self.idk = kwargs['idk']  # indices of classes to supervise
+        self.alpha = kwargs.get('alpha', None)  # alpha can be a list
+        self.beta = kwargs.get('beta', None)    # beta can be a list
+        print(f"Initialized {self.__class__.__name__} with {kwargs}")
+
+    def __call__(self, pred_softmax, weak_target):
+        # Check the inputs
+        assert pred_softmax.shape == weak_target.shape
+        assert simplex(pred_softmax)
+        assert sset(weak_target, [0, 1])
+
+        pred = pred_softmax[:, self.idk, ...]
+        target = weak_target[:, self.idk, ...].float()
+
+        epsilon = 1e-10
+        pred = pred.clamp(min=epsilon, max=1.0 - epsilon)
+
+        # True positives, false positives, and false negatives
+        TP = einsum("bkwh,bkwh->k", pred, target)  # True positives, summed per class
+        FP = einsum("bkwh,bkwh->k", pred, 1 - target)  # False positives, summed per class
+        FN = einsum("bkwh,bkwh->k", 1 - pred, target)  # False negatives, summed per class
+
+        # Handle class-specific alpha and beta values
+        if self.alpha is not None:
+            alpha = torch.tensor(self.alpha).to(pred.device).view(1, len(self.alpha), 1, 1)
+        else:
+            alpha = torch.tensor([0.5] * len(self.idk)).to(pred.device).view(1, len(self.idk), 1, 1)
+
+        if self.beta is not None:
+            beta = torch.tensor(self.beta).to(pred.device).view(1, len(self.beta), 1, 1)
+        else:
+            beta = torch.tensor([0.5] * len(self.idk)).to(pred.device).view(1, len(self.idk), 1, 1)
+
+        # Tversky index per class
+        Tversky_index = TP / (TP + alpha.squeeze() * FP + beta.squeeze() * FN + epsilon)
+
+        # Tversky loss per class
+        loss_per_class = 1 - Tversky_index
+
+        # Average the loss across all classes to return a scalar
+        loss = loss_per_class.mean()
+
+        return loss
+
