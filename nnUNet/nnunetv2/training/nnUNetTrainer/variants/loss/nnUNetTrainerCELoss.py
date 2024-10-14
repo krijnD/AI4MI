@@ -6,6 +6,20 @@ import numpy as np
 
 
 class nnUNetTrainerCELoss(nnUNetTrainer):
+    def __init__(
+    self,
+    plans: dict,
+    configuration: str,
+    fold: int,
+    dataset_json: dict,
+    unpack_dataset: bool = True,
+    device: torch.device = torch.device('cuda')
+    ):
+        # Call the base class __init__ with all required arguments
+        super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
+        # Set num_epochs after the base class initialization
+        self.num_epochs = 75
+
     def _build_loss(self):
         assert not self.label_manager.has_regions, "regions not supported by this trainer"
         loss = RobustCrossEntropyLoss(
