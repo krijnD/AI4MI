@@ -6,13 +6,24 @@ import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import unary_from_softmax
 
 
-def dense_crf_from_probabilities(image, probabilities):
+def dense_crf_from_probabilities(
+    image, probabilities,
+    sxy_gaussian=3, compat_gaussian=3,
+    sxy_bilateral=10, srgb_bilateral=13, compat_bilateral=10,
+    num_iterations=5
+):
     """
     Apply DenseCRF to refine the segmentation probabilities.
 
     Parameters:
-    - image: NumPy array of shape (H, W) or (H, W, 3), the original image.
+    - image: NumPy array of shape (H, W) or (H, W, 1), the original grayscale image.
     - probabilities: NumPy array of shape (C, H, W), the predicted probabilities for each class.
+    - sxy_gaussian: Spatial standard deviation for the Gaussian pairwise potential.
+    - compat_gaussian: Compatibility coefficient for the Gaussian pairwise potential.
+    - sxy_bilateral: Spatial standard deviation for the Bilateral pairwise potential.
+    - srgb_bilateral: Color/Intensity standard deviation for the Bilateral pairwise potential.
+    - compat_bilateral: Compatibility coefficient for the Bilateral pairwise potential.
+    - num_iterations: Number of inference iterations.
 
     Returns:
     - refined_probabilities: NumPy array of shape (C, H, W), the refined probabilities after DenseCRF.
@@ -25,12 +36,12 @@ def dense_crf_from_probabilities(image, probabilities):
     unary = unary.reshape((num_classes, -1))
     d.setUnaryEnergy(unary)
 
-    # Add pairwise potentials
-    d.addPairwiseGaussian(sxy=3, compat=3)
-    d.addPairwiseBilateral(sxy=10, srgb=13, rgbim=image, compat=10)
+    # Add pairwise potentials with adjustable parameters
+    d.addPairwiseGaussian(sxy=sxy_gaussian, compat=compat_gaussian)
+    d.addPairwiseBilateral(sxy=sxy_bilateral, srgb=srgb_bilateral, rgbim=image, compat=compat_bilateral)
 
-    # Perform inference
-    Q = d.inference(5)
+    # Perform inference with adjustable iterations
+    Q = d.inference(num_iterations)
     refined_probabilities = np.array(Q).reshape((num_classes, H, W))
 
     return refined_probabilities
