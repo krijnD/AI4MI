@@ -209,8 +209,8 @@ def main():
             for i, score in enumerate(score_per_class):
                 f.write(f"Class {class_names[i]}: {score:.4f}\n")
                 print(f"Class {class_names[i]}: {score:.4f}")
-            f.write(f"Mean : {score_per_class.mean()}")
-            print(f"Mean : {score_per_class.mean()}")
+            f.write(f"Mean (excluding background): {score_per_class[1:].mean()}")
+            print(f"Mean (excluding background) : {score_per_class[1:].mean()}")
             f.write("\n")
             print("\n")
 
