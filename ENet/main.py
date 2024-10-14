@@ -79,12 +79,12 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     B: int = datasets_params[first_dataset]['B']
 
     img_transform = transforms.Compose([
-        lambda img: img.convert('L'),
-        lambda img: np.array(img)[np.newaxis, ...],
-        lambda nd: np.clip((255 / nd.max()) * nd * 1.2, 0, 255),
-        lambda nd: nd / 255,
-        lambda nd: torch.tensor(nd, dtype=torch.float32)
-    ])
+    lambda img: img.convert('L'),  # Convert to grayscale
+    lambda img: np.array(img)[np.newaxis, ...],  # Add channel dimension
+    lambda nd: np.clip((255 / (nd.max() + 1e-5)) * nd * 1.2, 0, 255),  # Handle zero max value
+    lambda nd: nd / 255,  # Normalize to [0, 1]
+    lambda nd: torch.tensor(nd, dtype=torch.float32)
+])
 
     gt_transform = transforms.Compose([
         lambda img: np.array(img)[...],
@@ -111,7 +111,7 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                                  gt_transform=gt_transform,
                                  debug=args.debug)
 
-        if dataset_name == "SEGTHOR":
+        if dataset_name == "SEGTHOR_train":
             val_set = SliceDataset('val',
                                    root_dir,
                                    img_transform=img_transform,
