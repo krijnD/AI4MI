@@ -203,8 +203,8 @@ def crf_post_processing(image, probs, args):
     crf_probs = torch.tensor(crf_probs, dtype=torch.float32).unsqueeze(0)
     crf_onehot = probs2one_hot(crf_probs)  # Convert to one-hot (for consistency with the rest of the code
 
-    return crf_onehot
-
+    # return crf_onehot as tensor
+    return torch.Tensor(crf_onehot)
 
 def make_eval_dir(args):
     parent_dir = os.path.join("ENet", "evaluation")
@@ -285,7 +285,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    model = initialize_model(args.model_path, device)
+    model = initialize_model(args.model_path, device).to(device)
 
     test_loader = initialize_data_test()
 
@@ -307,7 +307,7 @@ def main():
             plottables["Normal prediction"] = pred_one_hot
 
             if args.crf:
-                crf_pred_one_hot = crf_post_processing(img, pred_probs, args)
+                crf_pred_one_hot = crf_post_processing(img, pred_probs, args).to(device)
                 plottables["Dense CRF prediction"] = crf_pred_one_hot
 
             if batch_idx % 50 == 0:
