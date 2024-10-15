@@ -8,8 +8,8 @@ from pydensecrf.utils import unary_from_softmax
 
 def dense_crf_from_probabilities(
     image, probabilities,
-    sxy_gaussian=3, compat_gaussian=3,
-    sxy_bilateral=10, srgb_bilateral=13, compat_bilateral=10,
+    sxy_gaussian=1, compat_gaussian=1,
+    sxy_bilateral=5, srgb_bilateral=2, compat_bilateral=1,
     num_iterations=5
 ):
     """
