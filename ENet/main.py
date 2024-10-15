@@ -55,6 +55,12 @@ datasets_params: dict[str, dict[str, Any]] = {}
 # Avoids the clases with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
 datasets_params["SEGTHOR_train"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_affine"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_elastic"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_noise"] = {'K': 5, 'net': ENet, 'B': 8}
+
+
+
 
 
 from torch.utils.data import ConcatDataset
