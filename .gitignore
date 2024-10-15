@@ -192,3 +192,5 @@ cython_debug/
 # Results
 results/
 ENet/bestweights75epoch
+evaluation/
+grid_search_results/

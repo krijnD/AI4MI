@@ -100,11 +100,11 @@ def args_parser():
     parser.add_argument('--crf', action='store_true')
 
     # Add arguments for DenseCRF parameters
-    parser.add_argument('--sxy_gaussian', type=int, default=3)
-    parser.add_argument('--compat_gaussian', type=int, default=3)
-    parser.add_argument('--sxy_bilateral', type=int, default=10)
-    parser.add_argument('--srgb_bilateral', type=int, default=13)
-    parser.add_argument('--compat_bilateral', type=int, default=10)
+    parser.add_argument('--sxy_gaussian', type=int, default=1)
+    parser.add_argument('--compat_gaussian', type=int, default=1)
+    parser.add_argument('--sxy_bilateral', type=int, default=5)
+    parser.add_argument('--srgb_bilateral', type=int, default=2)
+    parser.add_argument('--compat_bilateral', type=int, default=1)
     parser.add_argument('--num_iterations', type=int, default=5)
 
     args = parser.parse_args()
