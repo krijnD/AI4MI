@@ -24,9 +24,17 @@ class nnUNetTrainerDiceLoss(nnUNetTrainer):
         self.num_epochs = 75
 
     def _build_loss(self):
-        loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
-                                    'do_bg': self.label_manager.has_regions, 'smooth': 1e-5, 'ddp': self.is_ddp},
-                            apply_nonlin=torch.sigmoid if self.label_manager.has_regions else softmax_helper_dim1)
+        # loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
+        #                             'do_bg': self.label_manager.has_regions, 'smooth': 1e-5, 'ddp': self.is_ddp},
+        #                     apply_nonlin=torch.sigmoid if self.label_manager.has_regions else softmax_helper_dim1)
+        if self.label_manager.has_regions:
+            loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
+                                                'do_bg': True, 'smooth': 1e-5, 'ddp': self.is_ddp},
+                                            apply_nonlin=torch.sigmoid)
+        else:
+            loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
+                                                'do_bg': False, 'smooth': 1e-5, 'ddp': self.is_ddp},
+                                            apply_nonlin=softmax_helper_dim1)
 
         if self.enable_deep_supervision:
             deep_supervision_scales = self._get_deep_supervision_scales()
