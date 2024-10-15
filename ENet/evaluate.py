@@ -29,69 +29,6 @@ from utils import dice_coef, probs2one_hot, probs2class, class2one_hot
 
 from pathlib import Path
 
-custom_palette = {
-    'roze': '#eb8fd8',
-    'groen': '#b9d4b4',
-    'paars': '#ba94e9',
-    'blue': '#4C8BE2',
-    'orange': '#E27A3F',
-    'grey_light': '#1F3240',
-    'grey_dark': '#16242F'
-}
-
-custom_cmap = ListedColormap([
-    custom_palette['grey_dark'],   # Class 1
-    custom_palette['groen'],  # Class 2
-    custom_palette['paars'],  # Class 3
-    custom_palette['blue'],   # Class 4
-    custom_palette['orange']  # Class 5
-])
-
-class_names = ['Background', 'Esophagus', 'Heart', 'Trachea', 'Aorta']
-
-def set_custom_dark_theme():
-    # Set light grey background
-    sns.set_context('notebook', font_scale=1.2)
-    sns.set_style({
-        'axes.facecolor': custom_palette['grey_light'],  # Set background to light grey
-        'axes.edgecolor': 'white',  # Edge color of the plot
-        'axes.labelcolor': 'white',  # Axis labels color
-        'xtick.color': 'white',  # X-tick color
-        'ytick.color': 'white',  # Y-tick color
-        'grid.color': 'white',  # Gridline color
-        'figure.facecolor': custom_palette['grey_light'],  # Set figure background to light grey
-        'text.color': 'white'  # Color of text in the plot
-    })
-
-    # Set the color palette for seaborn plots (for lines)
-    sns.set_palette([custom_palette['roze'],
-                     custom_palette['groen'],
-                     custom_palette['paars'],
-                     custom_palette['blue'],
-                     custom_palette['orange']])
-
-def set_custom_light_theme():
-    # Set light grey background
-    sns.set_context('notebook', font_scale=1.2)
-    sns.set_style({
-        'axes.facecolor': 'white',  # Set background to light grey
-        'axes.edgecolor': 'black',  # Edge color of the plot
-        'axes.labelcolor': 'black',  # Axis labels color
-        'xtick.color': 'black',  # X-tick color
-        'ytick.color': 'black',  # Y-tick color
-        'grid.color': custom_palette["grey_light"],  # Gridline color
-        'figure.facecolor':'white',  # Set figure background to light grey
-        'text.color': 'black'  # Color of text in the plot
-    })
-
-    # Set the color palette for seaborn plots (for lines)
-    sns.set_palette([custom_palette['roze'],
-                     custom_palette['groen'],
-                     custom_palette['paars'],
-                     custom_palette['blue'],
-                     custom_palette['orange']])
-
-
 def args_parser():
     parser = argparse.ArgumentParser()
 
