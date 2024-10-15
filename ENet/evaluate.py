@@ -29,18 +29,75 @@ from utils import dice_coef, probs2one_hot, probs2class, class2one_hot
 
 from pathlib import Path
 
+custom_palette = {
+    'roze': '#eb8fd8',
+    'groen': '#b9d4b4',
+    'paars': '#ba94e9',
+    'blue': '#4C8BE2',
+    'orange': '#E27A3F',
+    'grey_light': '#1F3240',
+    'grey_dark': '#16242F'
+}
+
+custom_cmap = ListedColormap([
+    custom_palette['grey_dark'],   # Class 1
+    custom_palette['groen'],  # Class 2
+    custom_palette['paars'],  # Class 3
+    custom_palette['blue'],   # Class 4
+    custom_palette['orange']  # Class 5
+])
+
+class_names = ['Background', 'Esophagus', 'Heart', 'Trachea', 'Aorta']
+
+def set_custom_dark_theme():
+    # Set light grey background
+    sns.set_context('notebook', font_scale=1.2)
+    sns.set_style({
+        'axes.facecolor': custom_palette['grey_light'],  # Set background to light grey
+        'axes.edgecolor': 'white',  # Edge color of the plot
+        'axes.labelcolor': 'white',  # Axis labels color
+        'xtick.color': 'white',  # X-tick color
+        'ytick.color': 'white',  # Y-tick color
+        'grid.color': 'white',  # Gridline color
+        'figure.facecolor': custom_palette['grey_light'],  # Set figure background to light grey
+        'text.color': 'white'  # Color of text in the plot
+    })
+
+    # Set the color palette for seaborn plots (for lines)
+    sns.set_palette([custom_palette['roze'],
+                     custom_palette['groen'],
+                     custom_palette['paars'],
+                     custom_palette['blue'],
+                     custom_palette['orange']])
+
+def set_custom_light_theme():
+    # Set light grey background
+    sns.set_context('notebook', font_scale=1.2)
+    sns.set_style({
+        'axes.facecolor': 'white',  # Set background to light grey
+        'axes.edgecolor': 'black',  # Edge color of the plot
+        'axes.labelcolor': 'black',  # Axis labels color
+        'xtick.color': 'black',  # X-tick color
+        'ytick.color': 'black',  # Y-tick color
+        'grid.color': custom_palette["grey_light"],  # Gridline color
+        'figure.facecolor':'white',  # Set figure background to light grey
+        'text.color': 'black'  # Color of text in the plot
+    })
+
+    # Set the color palette for seaborn plots (for lines)
+    sns.set_palette([custom_palette['roze'],
+                     custom_palette['groen'],
+                     custom_palette['paars'],
+                     custom_palette['blue'],
+                     custom_palette['orange']])
+
+
 def args_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model_path', type=Path, required=True)
     parser.add_argument('--model_name', type=str, required=True)
     parser.add_argument('--crf', action='store_true')
-    parser.add_argument('--sxy_gaussian', type=int, default=3)
-    parser.add_argument('--compat_gaussian', type=int, default=3)
-    parser.add_argument('--sxy_bilateral', type=int, default=10)
-    parser.add_argument('--srgb_bilateral', type=int, default=13)
-    parser.add_argument('--compat_bilateral', type=int, default=10)
-    parser.add_argument('--num_iterations', type=int, default=5)
 
     args = parser.parse_args()
 
@@ -87,30 +144,36 @@ def initialize_data_test():
 
 
 def plot_results(image, plottables, idx, evaluate_dir):
-    img_np = image.cpu().numpy()[0, 0, :, :]  # Shape: (H, W)
-    fig, axs = plt.subplots(1, len(plottables) + 1, figsize=(20, 5))
+    for theme in ["light", "dark"]:
+        if theme == "dark":
+            set_custom_dark_theme()
+        else:
+            set_custom_light_theme()
 
-    axs_i = 0
-    axs[axs_i].imshow(img_np, cmap='gray')
-    axs[axs_i].set_title('Input Image')
-    axs[axs_i].axis('off')
-    axs_i += 1
+        img_np = image.cpu().numpy()[0, 0, :, :]  # Shape: (H, W)
+        fig, axs = plt.subplots(1, len(plottables) + 1, figsize=(20, 5))
 
-    for name, prediction in plottables.items():
-        pred_class = torch.argmax(prediction, dim=1)  # Shape: (B, H, W)
-        prediction_np = pred_class.cpu().numpy()[0]  # Shape: (H, W)
-
-        axs[axs_i].imshow(prediction_np, cmap=custom_cmap, vmin=0, vmax=5 - 1)
-        axs[axs_i].set_title(name)
+        axs_i = 0
+        axs[axs_i].imshow(img_np, cmap='gray')
+        axs[axs_i].set_title('Input Image')
         axs[axs_i].axis('off')
-
         axs_i += 1
 
-    plt.savefig(evaluate_dir + "/predict_" + str(idx) + "_" + theme + ".png")
-    plt.close()
+        for name, prediction in plottables.items():
+            pred_class = torch.argmax(prediction, dim=1)  # Shape: (B, H, W)
+            prediction_np = pred_class.cpu().numpy()[0]  # Shape: (H, W)
+
+            axs[axs_i].imshow(prediction_np, cmap=custom_cmap, vmin=0, vmax=5 - 1)
+            axs[axs_i].set_title(name)
+            axs[axs_i].axis('off')
+
+            axs_i += 1
+
+        plt.savefig(evaluate_dir + "/predict_" + str(idx) + "_" + theme + ".png")
+        plt.close()
 
 
-def crf_post_processing(image, probs, args):
+def crf_post_processing(image, probs):
     image_crf = image.squeeze().cpu().numpy()  # Shape: (H, W)
     image_crf = (image_crf * 255).astype(np.uint8)  # Convert to uint8
     image_crf = cv2.cvtColor(image_crf, cv2.COLOR_GRAY2RGB)  # Convert to 3-channel RGB
@@ -118,19 +181,10 @@ def crf_post_processing(image, probs, args):
     # Get probabilities for CRF
     pred_probs_crf = probs[0].cpu().numpy()  # Shape: (C, H, W)
 
-    # Apply DenseCRF with parameters from args
-    crf_probs = dense_crf_from_probabilities(
-        image_crf, 
-        pred_probs_crf,
-        sxy_gaussian=args.sxy_gaussian,
-        compat_gaussian=args.compat_gaussian,
-        sxy_bilateral=args.sxy_bilateral,
-        srgb_bilateral=args.srgb_bilateral,
-        compat_bilateral=args.compat_bilateral,
-        num_iterations=args.num_iterations
-    )
+    # Apply DenseCRF
+    crf_probs = dense_crf_from_probabilities(image_crf, pred_probs_crf)
     crf_probs = torch.tensor(crf_probs, dtype=torch.float32).unsqueeze(0)
-    crf_onehot = probs2one_hot(crf_probs)  # Convert to one-hot (for consistency with the rest of the code)
+    crf_onehot = probs2one_hot(crf_probs)  # Convert to one-hot (for consistency with the rest of the code
 
     return crf_onehot
 
@@ -150,35 +204,47 @@ def make_eval_dir(args):
 
 
 def plot_metrics(metrics, evaluate_dir):
-    for name_score, values in metrics.items():
-        scores = np.array(values)  # Shape: (num_samples, num_classes)
+    for theme in ["light", "dark"]:
+        if theme == "dark":
+            set_custom_dark_theme()
+        else:
+            set_custom_light_theme()
 
-        # Skip the background class using slicing
-        data_to_plot = [scores[:, i] for i in range(1, len(class_names))]
+        colors = [custom_palette['roze'],
+                  custom_palette['groen'],
+                  custom_palette['paars'],
+                  custom_palette['blue']]
 
-        # Prepare data in long-form DataFrame for seaborn
-        data = []
-        for i, class_name in enumerate(class_names[1:]):
-            for value in data_to_plot[i]:
-                data.append({'Class': class_name, name_score: value})
-        df = pd.DataFrame(data)
+        for name_score, values in metrics.items():
+            scores = np.array(values)  # Shape: (num_samples, num_classes)
 
-        plt.figure(figsize=(8, 6))
+            # Skip the background class using slicing
+            data_to_plot = [scores[:, i] for i in range(1, len(class_names))]
 
-        # Boxplot without outliers
-        sns.boxplot(x='Class', y=name_score, data=df, palette=colors, showfliers=False)  # No outliers
+            # Prepare data in long-form DataFrame for seaborn
+            data = []
+            for i, class_name in enumerate(class_names[1:]):
+                for value in data_to_plot[i]:
+                    data.append({'Class': class_name, name_score: value})
 
-        # Optional stripplot (can be removed if you want no dots)
+            df = pd.DataFrame(data)
+
+            plt.figure(figsize=(8, 6))
+
+            # Boxplot without outliers
+            sns.boxplot(x='Class', y=name_score, data=df, palette=colors, showfliers=False)  # No outliers
+
+            # Optional stripplot (can be removed if you want no dots)
             # sns.stripplot(x='Class', y=name_score, data=df, color='black', alpha=0.5, jitter=0.2)
 
-        plt.title(f"{name_score} per class (excluding Background)", fontsize=14)
-        plt.ylabel(name_score, fontsize=12)
-        plt.xlabel('Class', fontsize=12)
+            plt.title(f"{name_score} per class (excluding Background)", fontsize=14)
+            plt.ylabel(name_score, fontsize=12)
+            plt.xlabel('Class', fontsize=12)
 
-        plt.xticks(rotation=45, fontsize=12)
-        plt.tight_layout()
-        plt.savefig(os.path.join(evaluate_dir, f"{name_score}_per_class_{theme}.png"), dpi=300)
-        plt.close()
+            plt.xticks(rotation=45, fontsize=12)
+            plt.tight_layout()
+            plt.savefig(os.path.join(evaluate_dir, f"{name_score}_per_class_{theme}.png"), dpi=300)
+            plt.close()
 
 def print_metrics(metrics, evaluate_dir):
     with open(os.path.join(evaluate_dir, "metrics.txt"), 'w') as f:
@@ -224,7 +290,7 @@ def main():
             plottables["Normal prediction"] = pred_one_hot
 
             if args.crf:
-                crf_pred_one_hot = crf_post_processing(img, pred_probs, args)
+                crf_pred_one_hot = crf_post_processing(img, pred_probs)
                 plottables["Dense CRF prediction"] = crf_pred_one_hot
 
             if batch_idx % 50 == 0:
