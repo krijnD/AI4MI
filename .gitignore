@@ -22,6 +22,9 @@ bin/
 __pycache__/
 grad_figs/*.png
 
+# Allow nnUNet results folder
+!nnUNet/results/
+!nnUNet/results/**
 
 # ignore affine data
 ENet/affine_data/
