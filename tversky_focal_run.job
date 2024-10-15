@@ -1,0 +1,32 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=RunTraining
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=03:00:00
+#SBATCH --output=/home/scur2450/output/success/out-%x.%A.out
+#SBATCH --error=/home/scur2450/output/error/out-%x.%A.err
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+# Activate your environment
+source conda activate env_UNet
+
+# Go to the directory that contains the project, the runnable
+cd $HOME/AI4MI
+
+# train the model with tversky loss
+srun python -O ENet/main.py --datasets SEGTHOR_train  --mode full --epoch 30 --dest results/SEGTHOR/tversky_30epoch --gpu --loss TverskyLoss --tversky_alpha 0.2 0.4 0.7 0.6 0.8 --tversky_beta 0.8 0.6 0.3 0.4 0.3
+
+
+# train the model with focal loss
+srun python -O ENet/main.py --datasets SEGTHOR_train --mode full --epochs 30 --dest results/SEGTHOR/focal_30epoch --gpu --loss FocalLoss --focal_alpha 0.05 0.8 0.5 0.6 0.5 --focal_gamma 2.0
+
+
+# evaluate the model
+python evaluate.py --model_path /home/scur2450/AI4MI/results/SEGTHOR/tversky_30epoch/bestweights.pt --crf --model_name epoch30_SEGTHOR_tversky
+python evaluate.py --model_path /home/scur2450/AI4MI/results/SEGTHOR/focal_30epoch/bestweights.pt --crf --model_name epoch30_SEGTHOR_focal

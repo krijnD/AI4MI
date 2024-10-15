@@ -99,6 +99,14 @@ def args_parser():
     parser.add_argument('--model_name', type=str, required=True)
     parser.add_argument('--crf', action='store_true')
 
+    # Add arguments for DenseCRF parameters
+    parser.add_argument('--sxy_gaussian', type=int, default=3)
+    parser.add_argument('--compat_gaussian', type=int, default=3)
+    parser.add_argument('--sxy_bilateral', type=int, default=10)
+    parser.add_argument('--srgb_bilateral', type=int, default=13)
+    parser.add_argument('--compat_bilateral', type=int, default=10)
+    parser.add_argument('--num_iterations', type=int, default=5)
+
     args = parser.parse_args()
 
     pprint(args)
@@ -173,7 +181,7 @@ def plot_results(image, plottables, idx, evaluate_dir):
         plt.close()
 
 
-def crf_post_processing(image, probs):
+def crf_post_processing(image, probs, args):
     image_crf = image.squeeze().cpu().numpy()  # Shape: (H, W)
     image_crf = (image_crf * 255).astype(np.uint8)  # Convert to uint8
     image_crf = cv2.cvtColor(image_crf, cv2.COLOR_GRAY2RGB)  # Convert to 3-channel RGB
@@ -182,7 +190,16 @@ def crf_post_processing(image, probs):
     pred_probs_crf = probs[0].cpu().numpy()  # Shape: (C, H, W)
 
     # Apply DenseCRF
-    crf_probs = dense_crf_from_probabilities(image_crf, pred_probs_crf)
+    crf_probs = dense_crf_from_probabilities(
+        image_crf, pred_probs_crf,
+        sxy_gaussian=args.sxy_gaussian,
+        compat_gaussian=args.compat_gaussian,
+        sxy_bilateral=args.sxy_bilateral,
+        srgb_bilateral=args.srgb_bilateral,
+        compat_bilateral=args.compat_bilateral,
+        num_iterations=args.num_iterations
+    )
+    
     crf_probs = torch.tensor(crf_probs, dtype=torch.float32).unsqueeze(0)
     crf_onehot = probs2one_hot(crf_probs)  # Convert to one-hot (for consistency with the rest of the code
 
@@ -290,7 +307,7 @@ def main():
             plottables["Normal prediction"] = pred_one_hot
 
             if args.crf:
-                crf_pred_one_hot = crf_post_processing(img, pred_probs)
+                crf_pred_one_hot = crf_post_processing(img, pred_probs, args)
                 plottables["Dense CRF prediction"] = crf_pred_one_hot
 
             if batch_idx % 50 == 0:
