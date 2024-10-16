@@ -15,6 +15,7 @@ from nnunetv2.imageio.simpleitk_reader_writer import SimpleITKIO
 # the Evaluator class of the previous nnU-Net was great and all but man was it overengineered. Keep it simple
 from nnunetv2.utilities.json_export import recursive_fix_for_json_export
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
+from scipy.spatial.distance import directed_hausdorff
 
 
 def label_or_region_to_key(label_or_region: Union[int, Tuple[int]]):
@@ -85,6 +86,22 @@ def compute_tp_fp_fn_tn(mask_ref: np.ndarray, mask_pred: np.ndarray, ignore_mask
     tn = np.sum(((~mask_ref) & (~mask_pred)) & use_mask)
     return tp, fp, fn, tn
 
+def compute_hausdorff(mask_ref: np.ndarray, mask_pred: np.ndarray) -> float:
+    """
+    Computes the Hausdorff distance between two binary masks.
+    """
+    ref_coords = np.argwhere(mask_ref)  # Get the coordinates of the reference mask
+    pred_coords = np.argwhere(mask_pred)  # Get the coordinates of the predicted mask
+    
+    if len(ref_coords) == 0 or len(pred_coords) == 0:
+        return np.nan  # Return NaN if one of the masks is empty
+
+    # Compute Hausdorff distance (both directions)
+    hausdorff_1 = directed_hausdorff(ref_coords, pred_coords)[0]
+    hausdorff_2 = directed_hausdorff(pred_coords, ref_coords)[0]
+    
+    return max(hausdorff_1, hausdorff_2)
+
 
 def compute_metrics(reference_file: str, prediction_file: str, image_reader_writer: BaseReaderWriter,
                     labels_or_regions: Union[List[int], List[Union[int, Tuple[int, ...]]]],
@@ -107,9 +124,12 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
         if tp + fp + fn == 0:
             results['metrics'][r]['Dice'] = np.nan
             results['metrics'][r]['IoU'] = np.nan
+            results['metrics'][r]['Hausdorff'] = np.nan
         else:
             results['metrics'][r]['Dice'] = 2 * tp / (2 * tp + fp + fn)
             results['metrics'][r]['IoU'] = tp / (tp + fp + fn)
+            results['metrics'][r]['Hausdorff'] = compute_hausdorff(mask_ref, mask_pred)
+
         results['metrics'][r]['FP'] = fp
         results['metrics'][r]['TP'] = tp
         results['metrics'][r]['FN'] = fn
