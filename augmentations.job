@@ -1,0 +1,44 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=RunTraining
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=03:00:00
+#SBATCH --output=/home/scur2450/output/success/out-%x.%A.out
+#SBATCH --error=/home/scur2450/output/error/out-%x.%A.err
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+# Activate your environment
+source conda activate env_UNet
+
+# Go to the directory that contains the project, the runnable
+cd $HOME/AI4MI
+
+# train the model with tversky loss with different augmented data
+srun python -O ENet/main.py --datasets SEGTHOR_original  --mode full --epoch 30 --dest results/SEGTHOR_original/combined_30epoch --gpu --loss CombinedLoss
+
+srun python -O ENet/main.py --datasets SEGTHOR_original  --mode full --epoch 30 --dest results/SEGTHOR_original/CE_30epoch --gpu --loss CrossEntropy
+
+srun python -O ENet/main.py --datasets SEGTHOR_original  --mode full --epoch 30 --dest results/SEGTHOR_original/Dice_30epoch --gpu --loss DiceLoss
+
+srun python -O ENet/main.py --datasets SEGTHOR_affine  --mode full --epoch 30 --dest results/SEGTHOR_affine/combined_30epoch --gpu --loss CombinedLoss
+
+srun python -O ENet/main.py --datasets SEGTHOR_elastic  --mode full --epoch 30 --dest results/SEGTHOR_elastic/combined_30epoch --gpu --loss CombinedLoss
+
+srun python -O ENet/main.py --datasets SEGTHOR_noise  --mode full --epoch 30 --dest results/SEGTHOR_noise/combined_30epoch --gpu --loss CombinedLoss
+
+srun python -O ENet/main.py --datasets SEGTHOR_train SEGTHOR_affine SEGTHOR_elastic SEGTHOR_noise  --mode full --epoch 30 --dest results/SEGTHOR_combineddata/combined_30epoch --gpu --loss CombinedLoss
+
+
+
+# train the model with focal loss
+
+
+# # evaluate the model
+# python evaluate.py --model_path /home/scur2450/AI4MI/results/SEGTHOR/tversky_30epoch/bestweights.pt --crf --model_name epoch30_SEGTHOR_tversky
+# python evaluate.py --model_path /home/scur2450/AI4MI/results/SEGTHOR/focal_30epoch/bestweights.pt --crf --model_name epoch30_SEGTHOR_focal

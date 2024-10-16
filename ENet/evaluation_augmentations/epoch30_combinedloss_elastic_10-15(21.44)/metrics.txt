@@ -1,0 +1,21 @@
+Mean Dice per class:
+Class Background: 0.9982
+Class Esophagus: 0.7222
+Class Heart: 0.8992
+Class Trachea: 0.9257
+Class Aorta: 0.8782
+Mean (excluding background): 0.8563147187232971
+Mean Dice CRF per class:
+Class Background: 0.9982
+Class Esophagus: 0.7229
+Class Heart: 0.9102
+Class Trachea: 0.9307
+Class Aorta: 0.8850
+Mean (excluding background): 0.8621877431869507
+Mean Hausdorff distance per class:
+Class Background: 36.1354
+Class Esophagus: 2.5228
+Class Heart: 2.4276
+Class Trachea: 0.8463
+Class Aorta: 2.5888
+Mean (excluding background): 2.096386708456789

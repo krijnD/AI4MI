@@ -121,7 +121,7 @@ def initialize_model(model_path, device):
 
 
 def initialize_data_test():
-    root_dir = Path("data") / "SEGTHOR"
+    root_dir = Path("data") / "SEGTHOR_train"
 
     K = 5
 
