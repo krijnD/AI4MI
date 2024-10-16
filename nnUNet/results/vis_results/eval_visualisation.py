@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import os
 
 # Define class names (assuming indices start from 1)
 class_names = ['Background', 'Esophagus', 'Heart', 'Trachea', 'Aorta']
@@ -118,6 +119,9 @@ for model_name, json_file in json_files.items():
 # Create a DataFrame
 df = pd.DataFrame(all_data)
 
+output_dir = 'nnUNet/results/vis_results'
+os.makedirs(output_dir, exist_ok=True)
+
 # Create boxplots for each metric using custom themes
 for theme in ['light', 'dark']:
     if theme == 'dark':
@@ -139,6 +143,7 @@ for theme in ['light', 'dark']:
         plt.xlabel('Class', fontsize=12)
         plt.xticks(rotation=45, fontsize=12)
         plt.legend(title='Model', fontsize=12, title_fontsize=12)
+        plt.ylim(0, None)
         plt.tight_layout()
-        plt.savefig(f"{metric_name}_per_class_{theme}.png", dpi=300)
+        plt.savefig(os.path.join(output_dir, f"{metric_name}_per_class_{theme}.png"), dpi=300)
         plt.show()
