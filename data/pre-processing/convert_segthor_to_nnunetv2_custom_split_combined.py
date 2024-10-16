@@ -1,9 +1,9 @@
-from collections import OrderedDict
-from batchgenerators.utilities.file_and_folder_operations import *
-import shutil
 import argparse
 import os
+import shutil
 import random
+from collections import OrderedDict, defaultdict
+from batchgenerators.utilities.file_and_folder_operations import subfolders, maybe_mkdir_p, save_json, join, isdir
 
 
 """
@@ -48,41 +48,41 @@ Steps:
 
 """
 
-def create_splits(patient_id_mapping, remaining_patient_names, num_splits, num_val_cases):
+def create_splits(patient_id_mapping, remaining_patient_names, num_val_cases):
     """
-    Creates custom splits for cross-validation, grouping augmented versions of the same patient.
+    Creates custom splits for validation, assigning num_val_cases base patients to the validation set.
+    Only the 'corrected_GT' augmentations of these base patients are assigned to the validation set.
+    All other cases remain in the training set.
     """
-    base_patient_ids = [base_id for base_id in patient_id_mapping.keys() if any(aug_id in remaining_patient_names for aug_id in patient_id_mapping[base_id])]
+    base_patient_ids = list(patient_id_mapping.keys())
     random.shuffle(base_patient_ids)
     
-    splits = []
-    total_cases = len(base_patient_ids)
-    fold_size = total_cases // num_splits
+    # Select num_val_cases base patients for validation
+    val_base_ids = base_patient_ids[:num_val_cases]
     
-    for i in range(num_splits):
-        val_base_ids = base_patient_ids[i * fold_size: (i + 1) * fold_size]
-        val_cases = []
-        train_cases = []
-        
-        for base_id in base_patient_ids:
-            augmented_ids = patient_id_mapping[base_id]
-            if base_id in val_base_ids:
-                val_cases.extend([aug_id for aug_id in augmented_ids if aug_id in remaining_patient_names])
-            else:
-                train_cases.extend([aug_id for aug_id in augmented_ids if aug_id in remaining_patient_names])
-        
-        # Limit the number of validation cases if specified
-        if num_val_cases and num_val_cases < len(val_cases):
-            val_cases = val_cases[:num_val_cases]
-        
-        splits.append({'train': train_cases, 'val': val_cases})
+    val_cases = []
+    train_cases = []
+    
+    for base_id in base_patient_ids:
+        augmented_ids = patient_id_mapping[base_id]
+        for aug_id in augmented_ids:
+            if aug_id in remaining_patient_names:
+                if base_id in val_base_ids and 'corrected_GT' in aug_id:
+                    val_cases.append(aug_id)
+                else:
+                    train_cases.append(aug_id)
+    
+    splits = [{'train': train_cases, 'val': val_cases}]
+    
+    print(f"Total training cases: {len(train_cases)}")
+    print(f"Total validation cases: {len(val_cases)}")
     
     return splits
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert multiple SEGTHOR augmentations to nnUNetv2 format with custom splits.")
-    parser.add_argument('--data_dirs', type=str, nargs='+', required=True, help="List of paths to the SEGTHOR data directories.")
-    parser.add_argument('--augmentations', type=str, nargs='+', required=True, help="List of augmentation names corresponding to data_dirs.")
+    parser.add_argument('--data_dirs', type=str, nargs='+', required=True, help="List of dataset directory names (e.g., segthor_train, segthor_affine, segthor_elastic, segthor_noise).")
+    parser.add_argument('--augmentations', type=str, nargs='+', required=True, help="List of augmentation names corresponding to data_dirs (e.g., corrected_GT, affine, elastic, noise).")
     parser.add_argument('--nnUNet_raw', type=str, required=True, help="Path to nnUNet raw data directory.")
     parser.add_argument('--nnUNet_preprocessed', type=str, required=True, help="Path to nnUNet preprocessed data directory.")
     parser.add_argument('--num_splits', type=int, default=1, help="Number of splits for cross-validation.")
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_name', type=str, required=True, help="Dataset name (e.g., SegTHOR_Combined).")
     args = parser.parse_args()
 
-    # Get base directories from arguments
+    # Base directory where all data_dirs are located
     base = '/home/kdignumsepu/AI4MI/data' 
     nnUNet_raw = args.nnUNet_raw
     nnUNet_preprocessed = args.nnUNet_preprocessed
@@ -114,43 +114,48 @@ if __name__ == "__main__":
     maybe_mkdir_p(labelsts)
 
     all_patient_names = []
-    patient_id_mapping = {}  # Mapping from base patient ID to augmented patient IDs
+    patient_id_mapping = defaultdict(list)  # Mapping from base patient ID to augmented patient IDs
 
+    # Iterate over each dataset directory and corresponding augmentation
     for data_dir, augmentation in zip(args.data_dirs, args.augmentations):
-        data_dir = join(base, data_dir)
-        patient_names = subfolders(join(data_dir, "train"), join=False)
+        data_dir_path = join(base, data_dir)
+        patient_names = subfolders(join(data_dir_path, "train"), join=False)
         patient_names.sort()
         
         for p in patient_names:
             augmented_patient_id = f"{p}_{augmentation}"
-            curr = join(data_dir, "train", p)
+            curr = join(data_dir_path, "train", p)
             label_file = join(curr, "GT.nii.gz")
             image_file = join(curr, f"{p}.nii.gz")
             
-            # Copy images and labels
+            # Copy images and labels with new augmented_patient_id
             shutil.copy(image_file, join(imagestr, augmented_patient_id + "_0000.nii.gz"))
             shutil.copy(label_file, join(labelstr, augmented_patient_id + ".nii.gz"))
             
             all_patient_names.append(augmented_patient_id)
             
             # Map base patient ID to augmented IDs
-            if p not in patient_id_mapping:
-                patient_id_mapping[p] = []
             patient_id_mapping[p].append(augmented_patient_id)
 
-    # Randomly select test patients from base patient IDs
+    # Randomly select test patients from base patient IDs (segthor_train)
     base_patient_ids = list(patient_id_mapping.keys())
     random.seed(1234)  # For reproducibility
     test_base_patient_ids = random.sample(base_patient_ids, args.num_test_cases)
 
-    # Collect augmented patient IDs for test set
+    # Collect only the 'corrected_GT' augmented patient IDs for test set
     test_patient_names = []
     for base_id in test_base_patient_ids:
-        augmented_ids = patient_id_mapping[base_id]
-        test_patient_names.extend(augmented_ids)
+        # Find the 'corrected_GT' augmented ID
+        corrected_GT_id = next((aug_id for aug_id in patient_id_mapping[base_id] if 'corrected_GT' in aug_id), None)
+        if corrected_GT_id:
+            test_patient_names.append(corrected_GT_id)
 
     # Remaining patient names for training and validation
     remaining_patient_names = [p for p in all_patient_names if p not in test_patient_names]
+
+    print(f"Total cases before split: {len(all_patient_names)}")
+    print(f"Test cases: {len(test_patient_names)}")
+    print(f"Remaining cases for training/validation: {len(remaining_patient_names)}")
 
     # Move test data to imagesTs and labelsTs
     for p in test_patient_names:
