@@ -15,7 +15,8 @@ from nnunetv2.imageio.simpleitk_reader_writer import SimpleITKIO
 # the Evaluator class of the previous nnU-Net was great and all but man was it overengineered. Keep it simple
 from nnunetv2.utilities.json_export import recursive_fix_for_json_export
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
-from scipy.spatial.distance import directed_hausdorff
+from scipy.spatial import cKDTree
+from scipy.ndimage import binary_erosion
 
 
 def label_or_region_to_key(label_or_region: Union[int, Tuple[int]]):
@@ -74,6 +75,129 @@ def region_or_label_to_mask(segmentation: np.ndarray, region_or_label: Union[int
             mask[segmentation == r] = True
     return mask
 
+# def compute_hausdorff(mask_ref: np.ndarray, mask_pred: np.ndarray, percentile: float = 100.0) -> float:
+#     """
+#     Computes the Hausdorff distance between the surfaces of two binary masks.
+    
+#     Parameters:
+#     - mask_ref: Ground truth binary mask (numpy array)
+#     - mask_pred: Predicted binary mask (numpy array)
+#     - percentile: Percentile of the distances to compute (default is 100 for maximum distance)
+    
+#     Returns:
+#     - hd: The Hausdorff distance (float)
+#     """
+#     # Ensure masks are boolean
+#     mask_ref = mask_ref.astype(np.bool_)
+#     mask_pred = mask_pred.astype(np.bool_)
+    
+#     # Compute the edges (surface voxels) of the masks
+#     struct = np.ones((3, 3, 3), dtype=bool)
+#     edge_ref = mask_ref ^ binary_erosion(mask_ref, structure=struct)
+#     edge_pred = mask_pred ^ binary_erosion(mask_pred, structure=struct)
+    
+#     # Get coordinates of surface points
+#     coords_ref = np.argwhere(edge_ref)
+#     coords_pred = np.argwhere(edge_pred)
+    
+#     if len(coords_ref) == 0 or len(coords_pred) == 0:
+#         # One of the masks is empty, Hausdorff distance is undefined
+#         return np.nan
+    
+#     # Build kd-trees for efficient nearest neighbor search
+#     kd_tree_ref = cKDTree(coords_ref)
+#     kd_tree_pred = cKDTree(coords_pred)
+    
+#     # Compute nearest neighbor distances from reference to prediction
+#     distances_ref_to_pred, _ = kd_tree_pred.query(coords_ref, k=1)
+#     # Compute nearest neighbor distances from prediction to reference
+#     distances_pred_to_ref, _ = kd_tree_ref.query(coords_pred, k=1)
+    
+#     # Compute the specified percentile of the distances
+#     hd_ref_to_pred = np.percentile(distances_ref_to_pred, percentile)
+#     hd_pred_to_ref = np.percentile(distances_pred_to_ref, percentile)
+    
+#     # Hausdorff distance is the maximum of the two directed distances
+#     hd = max(hd_ref_to_pred, hd_pred_to_ref)
+    
+#     return hd\
+
+def compute_hausdorff(mask_ref: np.ndarray, mask_pred: np.ndarray, percentile: float = 100.0) -> float:
+    """
+    Computes the adjusted Hausdorff distance between predicted segmentation and ground truth for each class.
+    Handles cases where segments are missing in either prediction or ground truth.
+    Penalties are scaled based on the size of the missing or spurious segments.
+
+    Parameters:
+    - mask_ref: Ground truth binary mask (numpy array)
+    - mask_pred: Predicted binary mask (numpy array)
+    - percentile: Percentile of the distances to compute (default is 100 for maximum distance)
+
+    Returns:
+    - hausdorff_distance: The adjusted Hausdorff distance (float)
+    """
+    # Ensure masks are boolean
+    mask_ref = mask_ref.astype(bool)
+    mask_pred = mask_pred.astype(bool)
+
+    # Compute total volume (number of voxels in the mask)
+    total_voxels = mask_ref.size  # Total number of voxels in the volume
+
+    # Calculate the volumes (number of voxels) of the masks
+    pred_volume = np.sum(mask_pred)
+    gt_volume = np.sum(mask_ref)
+
+    # Compute scaling factors
+    gt_scaling_factor = gt_volume / total_voxels
+    pred_scaling_factor = pred_volume / total_voxels
+
+    # Compute maximum possible distance (diagonal of the volume)
+    max_coords = np.array(mask_ref.shape) - 1  # Subtract 1 because indices start at 0
+    max_distance = np.linalg.norm(max_coords)
+
+    # Extract surface voxels (edges) of the masks
+    # Create a structuring element matching the mask dimensions
+    struct = np.ones([3] * mask_ref.ndim, dtype=bool)
+
+    edge_ref = mask_ref ^ binary_erosion(mask_ref, structure=struct)
+    edge_pred = mask_pred ^ binary_erosion(mask_pred, structure=struct)
+
+    # Get coordinates of surface voxels
+    coords_ref = np.argwhere(edge_ref)
+    coords_pred = np.argwhere(edge_pred)
+
+    # Handle cases where one or both masks are empty
+    if coords_ref.size == 0 and coords_pred.size == 0:
+        # Both boundaries are empty; perfect agreement
+        hausdorff_distance = 0.0
+    elif coords_ref.size == 0 and coords_pred.size > 0:
+        # GT segment is missing, prediction is present (False Positive)
+        # Penalty proportional to predicted segment size
+        hausdorff_distance = max_distance * pred_scaling_factor
+    elif coords_ref.size > 0 and coords_pred.size == 0:
+        # GT segment is present, prediction is missing (False Negative)
+        # Penalty proportional to GT segment size
+        hausdorff_distance = max_distance * gt_scaling_factor
+    else:
+        # Both segments are present; compute the Hausdorff distance
+        # Build kd-trees for efficient nearest neighbor search
+        kd_tree_ref = cKDTree(coords_ref)
+        kd_tree_pred = cKDTree(coords_pred)
+
+        # Compute nearest neighbor distances from reference to prediction
+        distances_ref_to_pred, _ = kd_tree_pred.query(coords_ref, k=1)
+        # Compute nearest neighbor distances from prediction to reference
+        distances_pred_to_ref, _ = kd_tree_ref.query(coords_pred, k=1)
+
+        # Compute the specified percentile of the distances
+        hd_ref_to_pred = np.percentile(distances_ref_to_pred, percentile)
+        hd_pred_to_ref = np.percentile(distances_pred_to_ref, percentile)
+
+        # Hausdorff distance is the maximum of these two distances
+        hausdorff_distance = max(hd_ref_to_pred, hd_pred_to_ref)
+
+    return hausdorff_distance
+
 
 def compute_tp_fp_fn_tn(mask_ref: np.ndarray, mask_pred: np.ndarray, ignore_mask: np.ndarray = None):
     if ignore_mask is None:
@@ -85,22 +209,6 @@ def compute_tp_fp_fn_tn(mask_ref: np.ndarray, mask_pred: np.ndarray, ignore_mask
     fn = np.sum((mask_ref & (~mask_pred)) & use_mask)
     tn = np.sum(((~mask_ref) & (~mask_pred)) & use_mask)
     return tp, fp, fn, tn
-
-def compute_hausdorff(mask_ref: np.ndarray, mask_pred: np.ndarray) -> float:
-    """
-    Computes the Hausdorff distance between two binary masks.
-    """
-    ref_coords = np.argwhere(mask_ref)  # Get the coordinates of the reference mask
-    pred_coords = np.argwhere(mask_pred)  # Get the coordinates of the predicted mask
-    
-    if len(ref_coords) == 0 or len(pred_coords) == 0:
-        return np.nan  # Return NaN if one of the masks is empty
-
-    # Compute Hausdorff distance (both directions)
-    hausdorff_1 = directed_hausdorff(ref_coords, pred_coords)[0]
-    hausdorff_2 = directed_hausdorff(pred_coords, ref_coords)[0]
-    
-    return max(hausdorff_1, hausdorff_2)
 
 
 def compute_metrics(reference_file: str, prediction_file: str, image_reader_writer: BaseReaderWriter,
@@ -121,14 +229,19 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
         mask_ref = region_or_label_to_mask(seg_ref, r)
         mask_pred = region_or_label_to_mask(seg_pred, r)
         tp, fp, fn, tn = compute_tp_fp_fn_tn(mask_ref, mask_pred, ignore_mask)
-        if tp + fp + fn == 0:
-            results['metrics'][r]['Dice'] = np.nan
-            results['metrics'][r]['IoU'] = np.nan
-            results['metrics'][r]['Hausdorff'] = np.nan
-        else:
+
+        # Compute Dice and IoU
+        if tp + fp + fn > 0:
+            # At least one mask has positive pixels
             results['metrics'][r]['Dice'] = 2 * tp / (2 * tp + fp + fn)
             results['metrics'][r]['IoU'] = tp / (tp + fp + fn)
-            results['metrics'][r]['Hausdorff'] = compute_hausdorff(mask_ref, mask_pred)
+        else:
+            # Both masks are empty; perfect agreement
+            results['metrics'][r]['Dice'] = 1.0
+            results['metrics'][r]['IoU'] = 1.0
+
+        results['metrics'][r]['Hausdorff'] = compute_hausdorff(mask_ref, mask_pred, percentile=100.0)
+        results['metrics'][r]['Hausdorff95'] = compute_hausdorff(mask_ref, mask_pred, percentile=95.0)
 
         results['metrics'][r]['FP'] = fp
         results['metrics'][r]['TP'] = tp
@@ -137,7 +250,6 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
         results['metrics'][r]['n_pred'] = fp + tp
         results['metrics'][r]['n_ref'] = fn + tp
     return results
-
 
 def compute_metrics_on_folder(folder_ref: str, folder_pred: str, output_file: str,
                               image_reader_writer: BaseReaderWriter,
