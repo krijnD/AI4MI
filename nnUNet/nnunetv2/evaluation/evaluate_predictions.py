@@ -5,12 +5,10 @@ from multiprocessing import Pool
 from typing import Tuple, List, Union, Optional
 
 import numpy as np
-from batchgenerators.utilities.file_and_folder_operations import subfiles, join, save_json, load_json, \
-    isfile
+from batchgenerators.utilities.file_and_folder_operations import subfiles, join, save_json, load_json, isfile
 from nnunetv2.configuration import default_num_processes
 from nnunetv2.imageio.base_reader_writer import BaseReaderWriter
-from nnunetv2.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json, \
-    determine_reader_writer_from_file_ending
+from nnunetv2.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json, determine_reader_writer_from_file_ending
 from nnunetv2.imageio.simpleitk_reader_writer import SimpleITKIO
 # the Evaluator class of the previous nnU-Net was great and all but man was it overengineered. Keep it simple
 from nnunetv2.utilities.json_export import recursive_fix_for_json_export
@@ -35,8 +33,7 @@ def key_to_label_or_region(key: str):
 
 def save_summary_json(results: dict, output_file: str):
     """
-    json does not support tuples as keys (why does it have to be so shitty) so we need to convert that shit
-    ourselves
+    json does not support tuples as keys so we need to convert them ourselves
     """
     results_converted = deepcopy(results)
     # convert keys in mean metrics
@@ -75,52 +72,6 @@ def region_or_label_to_mask(segmentation: np.ndarray, region_or_label: Union[int
             mask[segmentation == r] = True
     return mask
 
-# def compute_hausdorff(mask_ref: np.ndarray, mask_pred: np.ndarray, percentile: float = 100.0) -> float:
-#     """
-#     Computes the Hausdorff distance between the surfaces of two binary masks.
-    
-#     Parameters:
-#     - mask_ref: Ground truth binary mask (numpy array)
-#     - mask_pred: Predicted binary mask (numpy array)
-#     - percentile: Percentile of the distances to compute (default is 100 for maximum distance)
-    
-#     Returns:
-#     - hd: The Hausdorff distance (float)
-#     """
-#     # Ensure masks are boolean
-#     mask_ref = mask_ref.astype(np.bool_)
-#     mask_pred = mask_pred.astype(np.bool_)
-    
-#     # Compute the edges (surface voxels) of the masks
-#     struct = np.ones((3, 3, 3), dtype=bool)
-#     edge_ref = mask_ref ^ binary_erosion(mask_ref, structure=struct)
-#     edge_pred = mask_pred ^ binary_erosion(mask_pred, structure=struct)
-    
-#     # Get coordinates of surface points
-#     coords_ref = np.argwhere(edge_ref)
-#     coords_pred = np.argwhere(edge_pred)
-    
-#     if len(coords_ref) == 0 or len(coords_pred) == 0:
-#         # One of the masks is empty, Hausdorff distance is undefined
-#         return np.nan
-    
-#     # Build kd-trees for efficient nearest neighbor search
-#     kd_tree_ref = cKDTree(coords_ref)
-#     kd_tree_pred = cKDTree(coords_pred)
-    
-#     # Compute nearest neighbor distances from reference to prediction
-#     distances_ref_to_pred, _ = kd_tree_pred.query(coords_ref, k=1)
-#     # Compute nearest neighbor distances from prediction to reference
-#     distances_pred_to_ref, _ = kd_tree_ref.query(coords_pred, k=1)
-    
-#     # Compute the specified percentile of the distances
-#     hd_ref_to_pred = np.percentile(distances_ref_to_pred, percentile)
-#     hd_pred_to_ref = np.percentile(distances_pred_to_ref, percentile)
-    
-#     # Hausdorff distance is the maximum of the two directed distances
-#     hd = max(hd_ref_to_pred, hd_pred_to_ref)
-    
-#     return hd\
 
 def compute_hausdorff(mask_ref: np.ndarray, mask_pred: np.ndarray, percentile: float = 100.0) -> float:
     """
@@ -213,42 +164,65 @@ def compute_tp_fp_fn_tn(mask_ref: np.ndarray, mask_pred: np.ndarray, ignore_mask
 
 def compute_metrics(reference_file: str, prediction_file: str, image_reader_writer: BaseReaderWriter,
                     labels_or_regions: Union[List[int], List[Union[int, Tuple[int, ...]]]],
-                    ignore_label: int = None) -> dict:
+                    ignore_label: int = None,
+                    adjust_crf: bool = False) -> dict:
     # load images
     seg_ref, seg_ref_dict = image_reader_writer.read_seg(reference_file)
     seg_pred, seg_pred_dict = image_reader_writer.read_seg(prediction_file)
 
     ignore_mask = seg_ref == ignore_label if ignore_label is not None else None
 
+    if adjust_crf:
+        seg_ref = np.squeeze(seg_ref)
+        seg_pred = np.squeeze(seg_pred)
+        
+        while seg_ref.ndim < seg_pred.ndim:
+            seg_ref = np.expand_dims(seg_ref, axis=0)
+        while seg_pred.ndim < seg_ref.ndim:
+            seg_pred = np.expand_dims(seg_pred, axis=0)
+        
+        if seg_ref.shape != seg_pred.shape:
+            raise ValueError(f"Cannot adjust shapes: seg_ref shape {seg_ref.shape}, seg_pred shape {seg_pred.shape}")
+
+    if seg_ref.shape != seg_pred.shape:
+        raise ValueError(f"Shape mismatch after adjustment: seg_ref shape {seg_ref.shape}, seg_pred shape {seg_pred.shape}")
+
     results = {}
     results['reference_file'] = reference_file
     results['prediction_file'] = prediction_file
     results['metrics'] = {}
+    
     for r in labels_or_regions:
         results['metrics'][r] = {}
         mask_ref = region_or_label_to_mask(seg_ref, r)
         mask_pred = region_or_label_to_mask(seg_pred, r)
+        
         tp, fp, fn, tn = compute_tp_fp_fn_tn(mask_ref, mask_pred, ignore_mask)
+        
+        # Compute Dice and IoU over the entire 3D volume
+        dice = 2 * np.sum(mask_ref & mask_pred) / (np.sum(mask_ref) + np.sum(mask_pred))
+        iou = np.sum(mask_ref & mask_pred) / np.sum(mask_ref | mask_pred)
 
-        # Compute Dice and IoU
-        if tp + fp + fn > 0:
-            # At least one mask has positive pixels
-            results['metrics'][r]['Dice'] = 2 * tp / (2 * tp + fp + fn)
-            results['metrics'][r]['IoU'] = tp / (tp + fp + fn)
-        else:
-            # Both masks are empty; perfect agreement
-            results['metrics'][r]['Dice'] = 1.0
-            results['metrics'][r]['IoU'] = 1.0
+        # Handle cases where both masks are empty
+        if np.sum(mask_ref) == 0 and np.sum(mask_pred) == 0:
+            dice = 1.0
+            iou = 1.0
 
+        results['metrics'][r]['Dice'] = dice
+        results['metrics'][r]['IoU'] = iou
+
+        # Hausdorff remains 3D
         results['metrics'][r]['Hausdorff'] = compute_hausdorff(mask_ref, mask_pred, percentile=100.0)
         results['metrics'][r]['Hausdorff95'] = compute_hausdorff(mask_ref, mask_pred, percentile=95.0)
 
+        # Keep FN, FP, TN, TP, n_pred, n_ref as 2D
         results['metrics'][r]['FP'] = fp
         results['metrics'][r]['TP'] = tp
         results['metrics'][r]['FN'] = fn
         results['metrics'][r]['TN'] = tn
         results['metrics'][r]['n_pred'] = fp + tp
         results['metrics'][r]['n_ref'] = fn + tp
+
     return results
 
 def compute_metrics_on_folder(folder_ref: str, folder_pred: str, output_file: str,
@@ -257,7 +231,8 @@ def compute_metrics_on_folder(folder_ref: str, folder_pred: str, output_file: st
                               regions_or_labels: Union[List[int], List[Union[int, Tuple[int, ...]]]],
                               ignore_label: int = None,
                               num_processes: int = default_num_processes,
-                              chill: bool = True) -> dict:
+                              chill: bool = True,
+                              adjust_crf: bool = False) -> dict:
     """
     output_file must end with .json; can be None
     """
@@ -271,12 +246,12 @@ def compute_metrics_on_folder(folder_ref: str, folder_pred: str, output_file: st
     files_ref = [join(folder_ref, i) for i in files_pred]
     files_pred = [join(folder_pred, i) for i in files_pred]
     with multiprocessing.get_context("spawn").Pool(num_processes) as pool:
-        # for i in list(zip(files_ref, files_pred, [image_reader_writer] * len(files_pred), [regions_or_labels] * len(files_pred), [ignore_label] * len(files_pred))):
-        #     compute_metrics(*i)
         results = pool.starmap(
             compute_metrics,
-            list(zip(files_ref, files_pred, [image_reader_writer] * len(files_pred), [regions_or_labels] * len(files_pred),
-                     [ignore_label] * len(files_pred)))
+            list(zip(files_ref, files_pred, [image_reader_writer] * len(files_pred),
+                     [regions_or_labels] * len(files_pred),
+                     [ignore_label] * len(files_pred),
+                     [adjust_crf] * len(files_pred)))
         )
 
     # mean metric per class
@@ -304,13 +279,13 @@ def compute_metrics_on_folder(folder_ref: str, folder_pred: str, output_file: st
     if output_file is not None:
         save_summary_json(result, output_file)
     return result
-    # print('DONE')
 
 
 def compute_metrics_on_folder2(folder_ref: str, folder_pred: str, dataset_json_file: str, plans_file: str,
                                output_file: str = None,
                                num_processes: int = default_num_processes,
-                               chill: bool = False):
+                               chill: bool = False,
+                               adjust_crf: bool = False):
     dataset_json = load_json(dataset_json_file)
     # get file ending
     file_ending = dataset_json['file_ending']
@@ -326,7 +301,7 @@ def compute_metrics_on_folder2(folder_ref: str, folder_pred: str, dataset_json_f
     lm = PlansManager(plans_file).get_label_manager(dataset_json)
     compute_metrics_on_folder(folder_ref, folder_pred, output_file, rw, file_ending,
                               lm.foreground_regions if lm.has_regions else lm.foreground_labels, lm.ignore_label,
-                              num_processes, chill=chill)
+                              num_processes, chill=chill, adjust_crf=adjust_crf)
 
 
 def compute_metrics_on_folder_simple(folder_ref: str, folder_pred: str, labels: Union[Tuple[int, ...], List[int]],
@@ -358,9 +333,10 @@ def evaluate_folder_entry_point():
                         help='Output file. Optional. Default: pred_folder/summary.json')
     parser.add_argument('-np', type=int, required=False, default=default_num_processes,
                         help=f'number of processes used. Optional. Default: {default_num_processes}')
-    parser.add_argument('--chill', action='store_true', help='dont crash if folder_pred does not have all files that are present in folder_gt')
+    parser.add_argument('--chill', action='store_true', help="don't crash if folder_pred does not have all files that are present in folder_gt")
+    parser.add_argument('--adjust_crf', action='store_true', help='Adjust CRF image dimensions during evaluation')
     args = parser.parse_args()
-    compute_metrics_on_folder2(args.gt_folder, args.pred_folder, args.djfile, args.pfile, args.o, args.np, chill=args.chill)
+    compute_metrics_on_folder2(args.gt_folder, args.pred_folder, args.djfile, args.pfile, args.o, args.np, chill=args.chill, adjust_crf=args.adjust_crf)
 
 
 def evaluate_simple_entry_point():
@@ -376,10 +352,11 @@ def evaluate_simple_entry_point():
                         help='Output file. Optional. Default: pred_folder/summary.json')
     parser.add_argument('-np', type=int, required=False, default=default_num_processes,
                         help=f'number of processes used. Optional. Default: {default_num_processes}')
-    parser.add_argument('--chill', action='store_true', help='dont crash if folder_pred does not have all files that are present in folder_gt')
+    parser.add_argument('--chill', action='store_true', help="don't crash if folder_pred does not have all files that are present in folder_gt")
+    parser.add_argument('--adjust_crf', action='store_true', help='Adjust CRF image dimensions during evaluation')
 
     args = parser.parse_args()
-    compute_metrics_on_folder_simple(args.gt_folder, args.pred_folder, args.l, args.o, args.np, args.il, chill=args.chill)
+    compute_metrics_on_folder_simple(args.gt_folder, args.pred_folder, args.l, args.o, args.np, args.il, chill=args.chill, adjust_crf=args.adjust_crf)
 
 
 if __name__ == '__main__':
