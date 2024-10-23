@@ -192,6 +192,9 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
     results['prediction_file'] = prediction_file
     results['metrics'] = {}
     
+    # Add background class (0) to labels_or_regions
+    # labels_or_regions = [0] + labels_or_regions
+
     for r in labels_or_regions:
         results['metrics'][r] = {}
         mask_ref = region_or_label_to_mask(seg_ref, r)
