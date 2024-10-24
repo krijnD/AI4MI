@@ -76,15 +76,15 @@ nnUNetv2_predict -i <imagesTs_dir> \
 2. Apply CRF:
 ```bash
 python nnUNet/results/CRF_experiments/apply_crf_nnUNetV2.py \
-  --image_dir <imagesTs_dir> \
-  --prediction_dir <predictions_with_probs_dir> \
-  --output_dir <crf_output_dir> \
-  --gt_dir <labelsTs_dir> \
-  --num_classes 5 \
-  --t 5 \
-  --sxy_gaussian 3 \
-  --compat_gaussian 5 \
-  --sxy_bilateral 80 \
-  --srgb_bilateral 13 \
-  --compat_bilateral 10
+--image_dir <path_to_imagesTs_dir> \
+  --prediction_dir <path_to_predictions_with_probs_dir> \
+  --output_dir <path_to_crf_output_dir> \
+  --gt_dir <path_to_labelsTs_dir> \
+  --num_classes <num_classes> \
+  --t <t_value> \
+  --sxy_gaussian <sxy_gaussian_value> \
+  --compat_gaussian <compat_gaussian_value> \
+  --sxy_bilateral <sxy_bilateral_value> \
+  --srgb_bilateral <srgb_bilateral_value> \
+  --compat_bilateral <compat_bilateral_value>
 ```
