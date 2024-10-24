@@ -138,7 +138,7 @@ def process_patient(patient_id, image_dir, prediction_dir, output_dir, gt_dir=No
                                     srgb_bilateral=srgb_bilateral, compat_bilateral=compat_bilateral)
 
     # Save output
-    output_path = os.path.join(output_dir, f'{patient_id}_crf.nii.gz')
+    output_path = os.path.join(output_dir, f'{patient_id}.nii.gz')
     save_crf_output(crf_probs, image, output_path)
     print(f'Saved CRF-processed segmentation for {patient_id} to {output_path}')
 

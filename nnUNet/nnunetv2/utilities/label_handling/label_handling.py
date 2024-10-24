@@ -225,6 +225,7 @@ class LabelManager(object):
     @property
     def foreground_labels(self):
         return self.filter_background(self.all_labels)
+        # return self.all_labels
 
     @property
     def num_segmentation_heads(self):

@@ -74,23 +74,30 @@ model_palette = {
     'Dice + CE Loss': custom_palette['groen'],
     'Dice Loss': custom_palette['paars'],
     'Focal Loss': custom_palette['blue'],
-    'Tversky Loss': custom_palette['orange']
+    'Tversky Loss': custom_palette['orange'],
+    'CRF': custom_palette['blue'],
+    'Baseline': custom_palette['orange'],
+    'Baseline 3d nnUNet': custom_palette['roze'],
+    'Baseline 2d nnUNet': custom_palette['groen']
 }
 
-network_dim = 2
+# network_dim = 2
+# output_dir = 'nnUNet/results/vis_results/2d/loss'
 # output_dir = 'nnUNet/results/vis_results/2d/augmentation'
-output_dir = 'nnUNet/results/vis_results/2d/loss'
+# output_dir = 'nnUNet/results/vis_results/2d/CRF'
 
 # Assume we have a dictionary of model names and corresponding json files
 # Replace the paths with your actual json file paths
-json_files = {
-    'CE Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_CE_loss_summary.json',
-    'Dice + CE Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json',
-    'Dice Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_loss_summary.json',
-    'Focal Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Focal_loss_summary.json'
-    # 'Tversky Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Tversky_loss_summary.json'
 
-}
+# 2D Results----------------------------------------------------------------------------------------------------------------
+# json_files = {
+#     'CE Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_CE_loss_summary.json',
+#     'Dice + CE Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json',
+#     'Dice Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_loss_summary.json',
+#     'Focal Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Focal_loss_summary.json'
+#     # 'Tversky Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Tversky_loss_summary.json'
+
+# }
 
 # json_files = {
 #     'Elastic augmentation': 'nnUNet/results/augmentation_results/Elastic_Dice_CE_loss_summary.json',
@@ -100,6 +107,39 @@ json_files = {
 #     'Baseline': 'nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json'
 # }
 
+# json_files = {
+#     'CRF': 'nnUNet/results/CRF_experiments/CRF_output/2d/CRF_summary.json',
+#     'Baseline': 'nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json'
+# }
+
+# 3D Results----------------------------------------------------------------------------------------------------------------
+network_dim = 3
+# output_dir = 'nnUNet/results/vis_results/3d/loss'
+# output_dir = 'nnUNet/results/vis_results/3d/augmentation'
+output_dir = 'nnUNet/results/vis_results/3d/CRF'
+
+# json_files = {
+#     'CE Loss': 'nnUNet/results/3d_losses_experiments/3d_lowres_CE_loss_summary.json',
+#     'Dice + CE Loss': 'nnUNet/results/3d_losses_experiments/3d_lowres_Dice_CE_loss_summary.json',
+#     'Dice Loss': 'nnUNet/results/3d_losses_experiments/3d_lowres_Dice_loss_summary.json',
+#     'Focal Loss': 'nnUNet/results/3d_losses_experiments/3d_lowres_nnUNetTrainerFocalLoss_summary.json',
+#     'Tversky Loss': 'nnUNet/results/3d_losses_experiments/3d_lowres_Tversky_loss_summary.json'
+# }
+
+# json_files = {
+#     'Elastic augmentation': 'nnUNet/results/3d_augmentations_experiments/3d_lowres_Dataset058_SegTHOR_Elastic_Dice_CE_loss_summary.json',
+#     'Noise augmentation': 'nnUNet/results/3d_augmentations_experiments/3d_lowres_Dataset059_SegTHOR_Noise_Dice_CE_loss_summary.json',
+#     'Affine augmentation': 'nnUNet/results/3d_augmentations_experiments/3d_lowres_Dataset057_SegTHOR_Affine_Dice_CE_loss_summary.json',
+#     'All augmentations': 'nnUNet/results/3d_augmentations_experiments/3d_lowres_Dataset060_SegTHOR_Combined_Dice_CE_loss_summary.json',
+#     'Baseline 3d nnUNet': 'nnUNet/results/3d_augmentations_experiments/3d_lowres_Dataset055_SegTHOR_Corrected_GT_Dice_CE_loss_summary.json',
+#     'Baseline 2d nnUNet' : 'nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json'
+# }
+
+json_files = {
+    'CRF': 'nnUNet/results/CRF_experiments/CRF_output/3d/CRF_summary.json',
+    'Baseline 3d nnUNet': 'nnUNet/results/3d_augmentations_experiments/3d_lowres_Dataset055_SegTHOR_Corrected_GT_Dice_CE_loss_summary.json',
+    'Baseline 2d nnUNet': 'nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json'
+}
 
 # Prepare data for plotting
 all_data = []

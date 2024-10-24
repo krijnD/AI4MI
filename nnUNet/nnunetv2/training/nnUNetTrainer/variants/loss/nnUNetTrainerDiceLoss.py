@@ -27,6 +27,7 @@ class nnUNetTrainerDiceLoss(nnUNetTrainer):
         # loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
         #                             'do_bg': self.label_manager.has_regions, 'smooth': 1e-5, 'ddp': self.is_ddp},
         #                     apply_nonlin=torch.sigmoid if self.label_manager.has_regions else softmax_helper_dim1)
+        
         if self.label_manager.has_regions:
             loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
                                                 'do_bg': True, 'smooth': 1e-5, 'ddp': self.is_ddp},
