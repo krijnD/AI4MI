@@ -55,8 +55,98 @@ datasets_params: dict[str, dict[str, Any]] = {}
 # Avoids the clases with C (often used for the number of Channel)
 datasets_params["TOY2"] = {'K': 2, 'net': shallowCNN, 'B': 2}
 datasets_params["SEGTHOR_train"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_affine"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_elastic"] = {'K': 5, 'net': ENet, 'B': 8}
+datasets_params["SEGTHOR_noise"] = {'K': 5, 'net': ENet, 'B': 8}
 
 
+
+
+
+# from torch.utils.data import ConcatDataset
+
+# def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
+#     # Networks and scheduler
+#     gpu: bool = args.gpu and torch.cuda.is_available()
+#     device = torch.device("cuda") if gpu else torch.device("cpu")
+#     print(f">> Picked {device} to run experiments")
+
+#     # Load parameters for the first dataset (assumes the same parameters for all datasets)
+#     first_dataset = args.datasets[0]
+#     K: int = datasets_params[first_dataset]['K']
+#     net = datasets_params[first_dataset]['net'](1, K)
+#     net.init_weights()
+#     net.to(device)
+
+#     lr = 0.0005
+#     optimizer = torch.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999))
+
+#     # Dataset part
+#     B: int = datasets_params[first_dataset]['B']
+
+#     img_transform = transforms.Compose([
+#     lambda img: img.convert('L'),  # Convert to grayscale
+#     lambda img: np.array(img)[np.newaxis, ...],  # Add channel dimension
+#     lambda nd: np.clip((255 / (nd.max() + 1e-5)) * nd * 1.2, 0, 255),  # Handle zero max value
+#     lambda nd: nd / 255,  # Normalize to [0, 1]
+#     lambda nd: torch.tensor(nd, dtype=torch.float32)
+# ])
+
+#     gt_transform = transforms.Compose([
+#         lambda img: np.array(img)[...],
+#         lambda nd: nd / (255 / (K - 1)) if K != 5 else nd / 63,
+#         lambda nd: torch.tensor(nd, dtype=torch.int64)[None, ...],
+#         lambda t: class2one_hot(t, K=K),
+#         itemgetter(0)
+#     ])
+
+#     # Create lists to store the datasets
+#     train_datasets = []
+#     val_datasets = []
+
+#     # Loop through all datasets and load them
+#     for dataset_name in args.datasets:
+#         root_dir = Path("data") / dataset_name
+
+#         print(f"Loading dataset: {dataset_name} from {root_dir}")
+
+#         # Load train and validation sets
+#         train_set = SliceDataset('train',
+#                                  root_dir,
+#                                  img_transform=img_transform,
+#                                  gt_transform=gt_transform,
+#                                  debug=args.debug)
+
+#         if dataset_name == "SEGTHOR_train":
+#             val_set = SliceDataset('val',
+#                                    root_dir,
+#                                    img_transform=img_transform,
+#                                    gt_transform=gt_transform,
+#                                    debug=args.debug)
+#             val_datasets.append(val_set)
+
+#         # Add them to the list of datasets
+#         train_datasets.append(train_set)
+
+
+#     # Concatenate all datasets using ConcatDataset
+#     combined_train_set = ConcatDataset(train_datasets)
+#     combined_val_set = ConcatDataset(val_datasets)
+
+#     # Create DataLoaders
+#     train_loader = DataLoader(combined_train_set,
+#                               batch_size=B,
+#                               num_workers=args.num_workers,
+#                               shuffle=True)
+
+#     val_loader = DataLoader(combined_val_set,
+#                             batch_size=B,
+#                             num_workers=args.num_workers,
+#                             shuffle=False)
+
+#     args.dest.mkdir(parents=True, exist_ok=True)
+
+#     return (net, optimizer, device, train_loader, val_loader, K)
 from torch.utils.data import ConcatDataset
 
 def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
@@ -79,12 +169,12 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
     B: int = datasets_params[first_dataset]['B']
 
     img_transform = transforms.Compose([
-    lambda img: img.convert('L'),  # Convert to grayscale
-    lambda img: np.array(img)[np.newaxis, ...],  # Add channel dimension
-    lambda nd: np.clip((255 / (nd.max() + 1e-5)) * nd * 1.2, 0, 255),  # Handle zero max value
-    lambda nd: nd / 255,  # Normalize to [0, 1]
-    lambda nd: torch.tensor(nd, dtype=torch.float32)
-])
+        lambda img: img.convert('L'),  # Convert to grayscale
+        lambda img: np.array(img)[np.newaxis, ...],  # Add channel dimension
+        lambda nd: np.clip((255 / (nd.max() + 1e-5)) * nd * 1.2, 0, 255),  # Handle zero max value
+        lambda nd: nd / 255,  # Normalize to [0, 1]
+        lambda nd: torch.tensor(nd, dtype=torch.float32)
+    ])
 
     gt_transform = transforms.Compose([
         lambda img: np.array(img)[...],
@@ -96,7 +186,6 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
     # Create lists to store the datasets
     train_datasets = []
-    val_datasets = []
 
     # Loop through all datasets and load them
     for dataset_name in args.datasets:
@@ -104,28 +193,33 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
 
         print(f"Loading dataset: {dataset_name} from {root_dir}")
 
-        # Load train and validation sets
+        # Load train set for the current dataset
         train_set = SliceDataset('train',
                                  root_dir,
                                  img_transform=img_transform,
                                  gt_transform=gt_transform,
                                  debug=args.debug)
 
-        if dataset_name == "SEGTHOR_train":
-            val_set = SliceDataset('val',
-                                   root_dir,
-                                   img_transform=img_transform,
-                                   gt_transform=gt_transform,
-                                   debug=args.debug)
-            val_datasets.append(val_set)
-
         # Add them to the list of datasets
         train_datasets.append(train_set)
 
+    # Always load validation and test sets from SEGTHOR_train
+    segthor_root_dir = Path("data") / "SEGTHOR_train"
+
+    val_set = SliceDataset('val',
+                           segthor_root_dir,
+                           img_transform=img_transform,
+                           gt_transform=gt_transform,
+                           debug=args.debug)
+
+    test_set = SliceDataset('test',
+                            segthor_root_dir,
+                            img_transform=img_transform,
+                            gt_transform=gt_transform,
+                            debug=args.debug)
 
     # Concatenate all datasets using ConcatDataset
     combined_train_set = ConcatDataset(train_datasets)
-    combined_val_set = ConcatDataset(val_datasets)
 
     # Create DataLoaders
     train_loader = DataLoader(combined_train_set,
@@ -133,19 +227,25 @@ def setup(args) -> tuple[nn.Module, Any, Any, DataLoader, DataLoader, int]:
                               num_workers=args.num_workers,
                               shuffle=True)
 
-    val_loader = DataLoader(combined_val_set,
+    val_loader = DataLoader(val_set,
                             batch_size=B,
                             num_workers=args.num_workers,
                             shuffle=False)
 
+    test_loader = DataLoader(test_set,
+                             batch_size=B,
+                             num_workers=args.num_workers,
+                             shuffle=False)
+
     args.dest.mkdir(parents=True, exist_ok=True)
 
-    return (net, optimizer, device, train_loader, val_loader, K)
+    return (net, optimizer, device, train_loader, val_loader, test_loader, K)
+
 
 
 def runTraining(args):
     print(f">>> Setting up to train on {args.datasets[0]} with {args.mode}")
-    model, optimizer, device, train_loader, val_loader, num_classes = setup(args)
+    model, optimizer, device, train_loader, val_loader, test_loader, num_classes = setup(args)
 
     # Choose the loss function based on args.loss
     if args.loss == 'CombinedLoss':

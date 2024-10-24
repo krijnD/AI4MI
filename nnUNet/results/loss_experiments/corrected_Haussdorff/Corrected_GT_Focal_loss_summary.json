@@ -1,0 +1,336 @@
+{
+    "foreground_mean": {
+        "Dice": 0.786711473151309,
+        "FN": 12279.2,
+        "FP": 13382.35,
+        "Hausdorff": 30.290813842892952,
+        "Hausdorff95": 4.674956422649293,
+        "IoU": 0.6777598133984588,
+        "TN": 48681646.800000004,
+        "TP": 103904.45000000001,
+        "n_pred": 117286.8,
+        "n_ref": 116183.65
+    },
+    "mean": {
+        "1": {
+            "Dice": 0.5186889061513255,
+            "FN": 11423.8,
+            "FP": 3320.8,
+            "Hausdorff": 44.07204830357726,
+            "Hausdorff95": 7.897170005484162,
+            "IoU": 0.36664444310585553,
+            "TN": 48787388.0,
+            "TP": 9080.2,
+            "n_pred": 12401.0,
+            "n_ref": 20504.0
+        },
+        "2": {
+            "Dice": 0.9168517711100572,
+            "FN": 17009.8,
+            "FP": 40124.4,
+            "Hausdorff": 22.902130510763396,
+            "Hausdorff95": 2.6675204166065734,
+            "IoU": 0.8476799580408798,
+            "TN": 48445615.4,
+            "TP": 308463.2,
+            "n_pred": 348587.6,
+            "n_ref": 325473.0
+        },
+        "3": {
+            "Dice": 0.8398307217300258,
+            "FN": 4324.0,
+            "FP": 1755.6,
+            "Hausdorff": 27.131708353487237,
+            "Hausdorff95": 3.770881618014169,
+            "IoU": 0.724067176371708,
+            "TN": 48789188.4,
+            "TP": 15944.8,
+            "n_pred": 17700.4,
+            "n_ref": 20268.8
+        },
+        "4": {
+            "Dice": 0.8714744936138272,
+            "FN": 16359.2,
+            "FP": 8328.6,
+            "Hausdorff": 27.0573682037439,
+            "Hausdorff95": 4.364253650492271,
+            "IoU": 0.772647676075392,
+            "TN": 48704395.4,
+            "TP": 82129.6,
+            "n_pred": 90458.2,
+            "n_ref": 98488.8
+        }
+    },
+    "metric_per_case": [
+        {
+            "metrics": {
+                "1": {
+                    "Dice": 0.6511218158984836,
+                    "FN": 15008,
+                    "FP": 3605,
+                    "Hausdorff": 12.529964086141668,
+                    "Hausdorff95": 4.123105625617661,
+                    "IoU": 0.48271357901172807,
+                    "TN": 59994994,
+                    "TP": 17369,
+                    "n_pred": 20974,
+                    "n_ref": 32377
+                },
+                "2": {
+                    "Dice": 0.9544908680478655,
+                    "FN": 18708,
+                    "FP": 14375,
+                    "Hausdorff": 7.0710678118654755,
+                    "Hausdorff95": 1.0,
+                    "IoU": 0.9129435974085438,
+                    "TN": 59650958,
+                    "TP": 346935,
+                    "n_pred": 361310,
+                    "n_ref": 365643
+                },
+                "3": {
+                    "Dice": 0.8369885491469202,
+                    "FN": 8290,
+                    "FP": 949,
+                    "Hausdorff": 19.519221295943137,
+                    "Hausdorff95": 2.449489742783178,
+                    "IoU": 0.7196735238788762,
+                    "TN": 59998018,
+                    "TP": 23719,
+                    "n_pred": 24668,
+                    "n_ref": 32009
+                },
+                "4": {
+                    "Dice": 0.8822836882656424,
+                    "FN": 9502,
+                    "FP": 16395,
+                    "Hausdorff": 31.080540535840107,
+                    "Hausdorff95": 6.164414002968976,
+                    "IoU": 0.7893628096888065,
+                    "TN": 59908030,
+                    "TP": 97049,
+                    "n_pred": 113444,
+                    "n_ref": 106551
+                }
+            },
+            "prediction_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/predictions/Focal/Patient_01.nii.gz",
+            "reference_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/labelsTs/Patient_01.nii.gz"
+        },
+        {
+            "metrics": {
+                "1": {
+                    "Dice": 0.44997157475838545,
+                    "FN": 12728,
+                    "FP": 2752,
+                    "Hausdorff": 54.7905101272109,
+                    "Hausdorff95": 6.3913388998684635,
+                    "IoU": 0.29029891802677427,
+                    "TN": 52144844,
+                    "TP": 6332,
+                    "n_pred": 9084,
+                    "n_ref": 19060
+                },
+                "2": {
+                    "Dice": 0.883174695408869,
+                    "FN": 27906,
+                    "FP": 64577,
+                    "Hausdorff": 10.0,
+                    "Hausdorff95": 6.0,
+                    "IoU": 0.7907903696112962,
+                    "TN": 51724597,
+                    "TP": 349576,
+                    "n_pred": 414153,
+                    "n_ref": 377482
+                },
+                "3": {
+                    "Dice": 0.8582503070833902,
+                    "FN": 1738,
+                    "FP": 3455,
+                    "Hausdorff": 48.662100242385755,
+                    "Hausdorff95": 6.0,
+                    "IoU": 0.7516974275604859,
+                    "TN": 52145742,
+                    "TP": 15721,
+                    "n_pred": 19176,
+                    "n_ref": 17459
+                },
+                "4": {
+                    "Dice": 0.8472554378772349,
+                    "FN": 30653,
+                    "FP": 1537,
+                    "Hausdorff": 17.72004514666935,
+                    "Hausdorff95": 5.656854249492381,
+                    "IoU": 0.7349897503025513,
+                    "TN": 52045189,
+                    "TP": 89277,
+                    "n_pred": 90814,
+                    "n_ref": 119930
+                }
+            },
+            "prediction_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/predictions/Focal/Patient_06.nii.gz",
+            "reference_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/labelsTs/Patient_06.nii.gz"
+        },
+        {
+            "metrics": {
+                "1": {
+                    "Dice": 0.21738187182713586,
+                    "FN": 12521,
+                    "FP": 5516,
+                    "Hausdorff": 52.744667976962376,
+                    "Hausdorff95": 21.118712081942874,
+                    "IoU": 0.12194528283516698,
+                    "TN": 44806082,
+                    "TP": 2505,
+                    "n_pred": 8021,
+                    "n_ref": 15026
+                },
+                "2": {
+                    "Dice": 0.9290332567530067,
+                    "FN": 8559,
+                    "FP": 29034,
+                    "Hausdorff": 11.180339887498949,
+                    "Hausdorff95": 1.7320508075688772,
+                    "IoU": 0.867471620954664,
+                    "TN": 44542964,
+                    "TP": 246067,
+                    "n_pred": 275101,
+                    "n_ref": 254626
+                },
+                "3": {
+                    "Dice": 0.8404617713853142,
+                    "FN": 3945,
+                    "FP": 1113,
+                    "Hausdorff": 19.467922333931785,
+                    "Hausdorff95": 3.1622776601683795,
+                    "IoU": 0.7248245470866655,
+                    "TN": 44808243,
+                    "TP": 13323,
+                    "n_pred": 14436,
+                    "n_ref": 17268
+                },
+                "4": {
+                    "Dice": 0.8619126029132362,
+                    "FN": 16496,
+                    "FP": 5308,
+                    "Hausdorff": 18.601075237738275,
+                    "Hausdorff95": 3.0,
+                    "IoU": 0.7573342830432266,
+                    "TN": 44736772,
+                    "TP": 68048,
+                    "n_pred": 73356,
+                    "n_ref": 84544
+                }
+            },
+            "prediction_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/predictions/Focal/Patient_08.nii.gz",
+            "reference_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/labelsTs/Patient_08.nii.gz"
+        },
+        {
+            "metrics": {
+                "1": {
+                    "Dice": 0.6773687840973224,
+                    "FN": 7191,
+                    "FP": 3099,
+                    "Hausdorff": 53.49766350038102,
+                    "Hausdorff95": 3.1622776601683795,
+                    "IoU": 0.5121373032429357,
+                    "TN": 45329820,
+                    "TP": 10802,
+                    "n_pred": 13901,
+                    "n_ref": 17993
+                },
+                "2": {
+                    "Dice": 0.886185853652296,
+                    "FN": 2278,
+                    "FP": 77789,
+                    "Hausdorff": 79.85612061701971,
+                    "Hausdorff95": 3.605551275463989,
+                    "IoU": 0.7956317097948328,
+                    "TN": 44959134,
+                    "TP": 311711,
+                    "n_pred": 389500,
+                    "n_ref": 313989
+                },
+                "3": {
+                    "Dice": 0.8210754017305315,
+                    "FN": 4704,
+                    "FP": 1086,
+                    "Hausdorff": 30.54504869860253,
+                    "Hausdorff95": 4.242640687119285,
+                    "IoU": 0.6964613368283094,
+                    "TN": 45331837,
+                    "TP": 13285,
+                    "n_pred": 14371,
+                    "n_ref": 17989
+                },
+                "4": {
+                    "Dice": 0.867819734471946,
+                    "FN": 17368,
+                    "FP": 14332,
+                    "Hausdorff": 49.82971001320397,
+                    "Hausdorff95": 5.0,
+                    "IoU": 0.7665031452099998,
+                    "TN": 45215150,
+                    "TP": 104062,
+                    "n_pred": 118394,
+                    "n_ref": 121430
+                }
+            },
+            "prediction_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/predictions/Focal/Patient_29.nii.gz",
+            "reference_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/labelsTs/Patient_29.nii.gz"
+        },
+        {
+            "metrics": {
+                "1": {
+                    "Dice": 0.5976004841753,
+                    "FN": 9671,
+                    "FP": 1632,
+                    "Hausdorff": 46.79743582719036,
+                    "Hausdorff95": 4.69041575982343,
+                    "IoU": 0.42612713241267264,
+                    "TN": 41661200,
+                    "TP": 8393,
+                    "n_pred": 10025,
+                    "n_ref": 18064
+                },
+                "2": {
+                    "Dice": 0.9313741816882485,
+                    "FN": 27598,
+                    "FP": 14847,
+                    "Hausdorff": 6.4031242374328485,
+                    "Hausdorff95": 1.0,
+                    "IoU": 0.8715624924350626,
+                    "TN": 41350424,
+                    "TP": 288027,
+                    "n_pred": 302874,
+                    "n_ref": 315625
+                },
+                "3": {
+                    "Dice": 0.842377579303973,
+                    "FN": 2943,
+                    "FP": 2175,
+                    "Hausdorff": 17.46424919657298,
+                    "Hausdorff95": 3.0,
+                    "IoU": 0.7276790465042035,
+                    "TN": 41662102,
+                    "TP": 13676,
+                    "n_pred": 15851,
+                    "n_ref": 16619
+                },
+                "4": {
+                    "Dice": 0.8981010045410761,
+                    "FN": 7777,
+                    "FP": 4071,
+                    "Hausdorff": 18.05547008526779,
+                    "Hausdorff95": 2.0,
+                    "IoU": 0.8150483921323759,
+                    "TN": 41616836,
+                    "TP": 52212,
+                    "n_pred": 56283,
+                    "n_ref": 59989
+                }
+            },
+            "prediction_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/predictions/Focal/Patient_38.nii.gz",
+            "reference_file": "/home/kdignumsepu/AI4MI/data/nnUNet_dataset/nnUNet_raw/nnUNet_raw_data/Dataset055_SegTHOR_Corrected_GT/labelsTs/Patient_38.nii.gz"
+        }
+    ]
+}
