@@ -1,5 +1,18 @@
 # AI4MI
 ![Pipeline](AI4MI/pipeline.png)
+This repository is a research project conducted as part of the “AI for Medical Imaging” course at the University of Amsterdam (UvA). This project focuses on comparing three segmentation models—ENet, nnUNet 2D, and nnUNet 3D—on the SEGTHOR dataset, a publicly available dataset for thoracic organ segmentation in CT scans.
+
+## Research Scope
+
+We designed our research to focus on the following three dimensions:
+
+1.	**Model Variants**: We evaluate three different segmentation models—ENet, nnUNet 2D, and nnUNet 3D.
+2.	**Loss Functions**: For each model, we experiment with multiple loss functions, including Dice Loss, Cross-Entropy Loss (CE Loss), Dice + CE Loss, Focal Loss, and Tversky Loss.
+3.	**Data Augmentations**: We apply various data augmentations such as affine transformations, elastic deformations, and noise addition to the dataset, in addition to using the original and transformed data.
+4.	**Post-Processing**: Conditional Random Fields (CRF) are used as a post-processing step to further refine the model predictions.
+
+The aim is not to directly compare models like ENet and nnUNet head-to-head since they inherently differ in components such as dataloaders, optimizers, and overall architecture. Instead, we focus on **within-model comparisons** by observing the effects of different losses, data augmentations, and post-processing on each model individually. Only after analyzing these internal variations do we make cross-model comparisons—while acknowledging the inherent limitations and “unfair” aspects of these comparisons.
+
 ## Data Preparation and Augmentation
 If you have the SEGTHOR dataset in a zip file, follow these steps to prepare and augment the data:
 1.	Unzip the Data: Extract data.zip into the data/ folder.
