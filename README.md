@@ -3,11 +3,37 @@
 If you have the SEGTHOR dataset in a zip file, follow these steps to prepare and augment the data:
 1.	Unzip the Data: Extract data.zip into the data/ folder.
 2.	Ensure Required Files: Make sure the transform.tfm file is located in the same directory as the transform.py script (AI4MI/data/pre-processing/).
-3.	Run the Transformation Script: The transform.py script creates several data augmentations (affine, elastic, and noise) to expand the dataset. Execute the script as follows:
+3.	Run the Transformation Script: The transform.py script creates several data augmentations (affine, elastic, original, train and noise) to expand the dataset. Execute the script as follows:
 ```bash
 python AI4MI/data/pre-processing/transform.py
 ```
 This script processes the dataset, generates the transformations, and places the augmented data into respective folders like segthor_affine, segthor_elastic, and segthor_noise.
+
+## Enet Installation and Usage
+To initialize the submodules run
+```bash
+cd AI4MI
+git submodule init
+git submodule update
+```
+
+Ensure you are using Python 3.10 or later. You can create a virtual environment and install the required packages from requirements.txt:
+
+```bash
+python -m venv ai4mi
+source ai4mi/bin/activate
+python -m pip install -r requirements.txt
+```
+## Enet Data Preprocessing
+After having ran the transformation.py script, execute the following make commands slice the data and make it Enet compatible
+
+```bash
+make data/slice_segthor_train
+make data/slice_segthor_affine
+make data/slice_segthor_elastic
+make data/slice_segthor_noise
+```
+
 ## nnUNet Installation and Usage
 
 ### Installation
