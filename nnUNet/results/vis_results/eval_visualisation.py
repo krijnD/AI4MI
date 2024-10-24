@@ -69,18 +69,38 @@ model_palette = {
     'Noise augmentation': custom_palette['groen'],
     'Affine augmentation': custom_palette['paars'],
     'All augmentations': custom_palette['blue'],
-    'Baseline': custom_palette['orange']
+    'Baseline': custom_palette['orange'],
+    'CE Loss': custom_palette['roze'],
+    'Dice + CE Loss': custom_palette['groen'],
+    'Dice Loss': custom_palette['paars'],
+    'Focal Loss': custom_palette['blue'],
+    'Tversky Loss': custom_palette['orange']
 }
+
+network_dim = 2
+# output_dir = 'nnUNet/results/vis_results/2d/augmentation'
+output_dir = 'nnUNet/results/vis_results/2d/loss'
 
 # Assume we have a dictionary of model names and corresponding json files
 # Replace the paths with your actual json file paths
 json_files = {
-    'Elastic augmentation': 'nnUNet/results/augmentation_results/Elastic_Dice_CE_loss_summary.json',
-    'Noise augmentation': 'nnUNet/results/augmentation_results/Noise_Dice_CE_loss_summary.json',
-    'Affine augmentation': 'nnUNet/results/augmentation_results/Affine_Dice_CE_loss_summary.json',
-    'All augmentations': 'nnUNet/results/augmentation_results/Combined_Dice_CE_loss_summary.json',
-    'Baseline': 'nnUNet/results/loss_experiments/Corrected_GT_Dice_CE_loss_summary.json'
+    'CE Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_CE_loss_summary.json',
+    'Dice + CE Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json',
+    'Dice Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_loss_summary.json',
+    'Focal Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Focal_loss_summary.json'
+    # 'Tversky Loss': '/home/kdignumsepu/AI4MI/nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Tversky_loss_summary.json'
+
 }
+
+# json_files = {
+#     'Elastic augmentation': 'nnUNet/results/augmentation_results/Elastic_Dice_CE_loss_summary.json',
+#     'Noise augmentation': 'nnUNet/results/augmentation_results/Noise_Dice_CE_loss_summary.json',
+#     'Affine augmentation': 'nnUNet/results/augmentation_results/Affine_Dice_CE_loss_summary.json',
+#     'All augmentations': 'nnUNet/results/augmentation_results/Combined_Dice_CE_loss_summary.json',
+#     'Baseline': 'nnUNet/results/loss_experiments/corrected_Haussdorff/Corrected_GT_Dice_CE_loss_summary.json'
+# }
+
+
 # Prepare data for plotting
 all_data = []
 
@@ -90,7 +110,7 @@ for model_name, json_file in json_files.items():
         data = json.load(f)
 
     # For each metric
-    for metric_name in ['Dice', 'Hausdorff', 'IoU']:
+    for metric_name in ['Dice', 'Hausdorff', 'Hausdorff95', 'IoU']:
         # Collect metric values per class across all cases
         metric_values_per_class = {}  # Key: class_idx, Value: list of values
         for case in data['metric_per_case']:
@@ -119,7 +139,6 @@ for model_name, json_file in json_files.items():
 # Create a DataFrame
 df = pd.DataFrame(all_data)
 
-output_dir = 'nnUNet/results/vis_results'
 os.makedirs(output_dir, exist_ok=True)
 
 # Create boxplots for each metric using custom themes
@@ -138,7 +157,7 @@ for theme in ['light', 'dark']:
             palette=model_palette,
             showfliers=False  # Hide outliers for clarity
         )
-        plt.title(f"{metric_name} per class for different models", fontsize=14)
+        plt.title(f"nnUNet {network_dim}d {metric_name} per class for different models", fontsize=14)
         plt.ylabel(metric_name, fontsize=12)
         plt.xlabel('Class', fontsize=12)
         plt.xticks(rotation=45, fontsize=12)
