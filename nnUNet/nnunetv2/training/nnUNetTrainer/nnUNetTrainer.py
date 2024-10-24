@@ -1079,10 +1079,10 @@ class nnUNetTrainer(object):
         fp_hard = fp.detach().cpu().numpy()
         fn_hard = fn.detach().cpu().numpy()
         if not self.label_manager.has_regions:
-            # if we train with regions all segmentation heads predict some kind of foreground. In conventional
-            # (softmax training) there needs tobe one output for the background. We are not interested in the
-            # background Dice
-            # [1:] in order to remove background
+        #     # if we train with regions all segmentation heads predict some kind of foreground. In conventional
+        #     # (softmax training) there needs tobe one output for the background. We are not interested in the
+        #     # background Dice
+        #     # [1:] in order to remove background
             tp_hard = tp_hard[1:]
             fp_hard = fp_hard[1:]
             fn_hard = fn_hard[1:]
