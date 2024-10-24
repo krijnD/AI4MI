@@ -25,24 +25,40 @@
 from pathlib import Path
 from typing import Callable, Union
 
-from torch import Tensor
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
 
-def make_dataset(root, subset) -> list[tuple[Path, Path]]:
+def make_dataset(root, subset) -> list[dict]:
     assert subset in ['train', 'val', 'test']
 
     root = Path(root)
+    img_dir = root / subset / 'img'
+    gt_dir = root / subset / 'gt'
 
-    img_path = root / subset / 'img'
-    full_path = root / subset / 'gt'
+    images = sorted(img_dir.glob("*.png"))
+    labels = sorted(gt_dir.glob("*.png"))
 
-    images = sorted(img_path.glob("*.png"))
-    full_labels = sorted(full_path.glob("*.png"))
+    data_list = []
 
-    return list(zip(images, full_labels))
+    for img_file, label_file in zip(images, labels):
+        stem = img_file.stem  # e.g., 'Patient_XX_YYYY'
+        parts = stem.split('_')  # Splits into ['Patient', 'XX', 'YYYY']
+        if len(parts) == 3:
+            volume_id = int(parts[1])  # Convert 'XX' to integer
+            slice_idx = int(parts[2])  # Convert 'YYYY' to integer
+        else:
+            raise ValueError(f"Filename {img_file.name} does not match expected pattern 'Patient_XX_YYYY.png'.")
 
+        data_list.append({
+            'img': img_file,
+            'gt': label_file,
+            'volume_id': volume_id,
+            'slice_idx': slice_idx
+        })
+
+    return data_list
 
 class SliceDataset(Dataset):
     def __init__(self, subset, root_dir, img_transform=None,
@@ -62,16 +78,24 @@ class SliceDataset(Dataset):
     def __len__(self):
         return len(self.files)
 
-    def __getitem__(self, index) -> dict[str, Union[Tensor, int, str]]:
-        img_path, gt_path = self.files[index]
+    def __getitem__(self, index) -> dict[str, Union[torch.Tensor, int, str]]:
+        data_entry = self.files[index]
+        img_path = data_entry['img']
+        gt_path = data_entry['gt']
+        volume_id = data_entry['volume_id']
+        slice_idx = data_entry['slice_idx']
 
-        img: Tensor = self.img_transform(Image.open(img_path))
-        gt: Tensor = self.gt_transform(Image.open(gt_path))
+        img: torch.Tensor = self.img_transform(Image.open(img_path))
+        gt: torch.Tensor = self.gt_transform(Image.open(gt_path))
 
         _, W, H = img.shape
         K, _, _ = gt.shape
         assert gt.shape == (K, W, H)
 
-        return {"images": img,
-                "gts": gt,
-                "stems": img_path.stem}
+        return {
+            "images": img,
+            "gts": gt,
+            "stems": img_path.stem,
+            "volume_id": volume_id,
+            "slice_idx": slice_idx
+        }

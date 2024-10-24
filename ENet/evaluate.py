@@ -1,95 +1,29 @@
 import argparse
+import pickle
 import uuid
 from collections import defaultdict
 from datetime import datetime
 from pprint import pprint
 import torch
-import os
-
-from matplotlib.colors import ListedColormap
 from tqdm import tqdm
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 import os
-from pathlib import Path
 from operator import itemgetter
 from DenseCRF import dense_crf_from_probabilities
 import cv2
 
 # Import your custom modules (make sure these are accessible in your notebook)
 from ENet import ENet
-from metrics import compute_hausdorff_distance
+from evaluate_plots import class_names, plot_results, plot_metrics, animate_3d_volume
+from metrics import compute_hausdorff_distance, dice_coef_per_class, compute_hausdorff_distance_per_class, \
+    three_dimensional_metrics
 from dataset import SliceDataset
 from utils import dice_coef, probs2one_hot, probs2class, class2one_hot
 
 from pathlib import Path
-
-custom_palette = {
-    'roze': '#eb8fd8',
-    'groen': '#b9d4b4',
-    'paars': '#ba94e9',
-    'blue': '#4C8BE2',
-    'orange': '#E27A3F',
-    'grey_light': '#1F3240',
-    'grey_dark': '#16242F'
-}
-
-custom_cmap = ListedColormap([
-    custom_palette['grey_dark'],   # Class 1
-    custom_palette['groen'],  # Class 2
-    custom_palette['paars'],  # Class 3
-    custom_palette['blue'],   # Class 4
-    custom_palette['orange']  # Class 5
-])
-
-class_names = ['Background', 'Esophagus', 'Heart', 'Trachea', 'Aorta']
-
-def set_custom_dark_theme():
-    # Set light grey background
-    sns.set_context('notebook', font_scale=1.2)
-    sns.set_style({
-        'axes.facecolor': custom_palette['grey_light'],  # Set background to light grey
-        'axes.edgecolor': 'white',  # Edge color of the plot
-        'axes.labelcolor': 'white',  # Axis labels color
-        'xtick.color': 'white',  # X-tick color
-        'ytick.color': 'white',  # Y-tick color
-        'grid.color': 'white',  # Gridline color
-        'figure.facecolor': custom_palette['grey_light'],  # Set figure background to light grey
-        'text.color': 'white'  # Color of text in the plot
-    })
-
-    # Set the color palette for seaborn plots (for lines)
-    sns.set_palette([custom_palette['roze'],
-                     custom_palette['groen'],
-                     custom_palette['paars'],
-                     custom_palette['blue'],
-                     custom_palette['orange']])
-
-def set_custom_light_theme():
-    # Set light grey background
-    sns.set_context('notebook', font_scale=1.2)
-    sns.set_style({
-        'axes.facecolor': 'white',  # Set background to light grey
-        'axes.edgecolor': 'black',  # Edge color of the plot
-        'axes.labelcolor': 'black',  # Axis labels color
-        'xtick.color': 'black',  # X-tick color
-        'ytick.color': 'black',  # Y-tick color
-        'grid.color': custom_palette["grey_light"],  # Gridline color
-        'figure.facecolor':'white',  # Set figure background to light grey
-        'text.color': 'black'  # Color of text in the plot
-    })
-
-    # Set the color palette for seaborn plots (for lines)
-    sns.set_palette([custom_palette['roze'],
-                     custom_palette['groen'],
-                     custom_palette['paars'],
-                     custom_palette['blue'],
-                     custom_palette['orange']])
 
 
 def args_parser():
@@ -151,36 +85,6 @@ def initialize_data_test():
     return test_loader
 
 
-def plot_results(image, plottables, idx, evaluate_dir):
-    for theme in ["light", "dark"]:
-        if theme == "dark":
-            set_custom_dark_theme()
-        else:
-            set_custom_light_theme()
-
-        img_np = image.cpu().numpy()[0, 0, :, :]  # Shape: (H, W)
-        fig, axs = plt.subplots(1, len(plottables) + 1, figsize=(20, 5))
-
-        axs_i = 0
-        axs[axs_i].imshow(img_np, cmap='gray')
-        axs[axs_i].set_title('Input Image')
-        axs[axs_i].axis('off')
-        axs_i += 1
-
-        for name, prediction in plottables.items():
-            pred_class = torch.argmax(prediction, dim=1)  # Shape: (B, H, W)
-            prediction_np = pred_class.cpu().numpy()[0]  # Shape: (H, W)
-
-            axs[axs_i].imshow(prediction_np, cmap=custom_cmap, vmin=0, vmax=5 - 1)
-            axs[axs_i].set_title(name)
-            axs[axs_i].axis('off')
-
-            axs_i += 1
-
-        plt.savefig(evaluate_dir + "/predict_" + str(idx) + "_" + theme + ".png")
-        plt.close()
-
-
 def crf_post_processing(image, probs, args):
     image_crf = image.squeeze().cpu().numpy()  # Shape: (H, W)
     image_crf = (image_crf * 255).astype(np.uint8)  # Convert to uint8
@@ -199,12 +103,13 @@ def crf_post_processing(image, probs, args):
         compat_bilateral=args.compat_bilateral,
         num_iterations=args.num_iterations
     )
-    
+
     crf_probs = torch.tensor(crf_probs, dtype=torch.float32).unsqueeze(0)
     crf_onehot = probs2one_hot(crf_probs)  # Convert to one-hot (for consistency with the rest of the code
 
     # return crf_onehot as tensor
     return torch.Tensor(crf_onehot)
+
 
 def make_eval_dir(args):
     parent_dir = os.path.join("ENet", "evaluation")
@@ -220,51 +125,8 @@ def make_eval_dir(args):
     return directory_path
 
 
-def plot_metrics(metrics, evaluate_dir):
-    for theme in ["light", "dark"]:
-        if theme == "dark":
-            set_custom_dark_theme()
-        else:
-            set_custom_light_theme()
-
-        colors = [custom_palette['roze'],
-                  custom_palette['groen'],
-                  custom_palette['paars'],
-                  custom_palette['blue']]
-
-        for name_score, values in metrics.items():
-            scores = np.array(values)  # Shape: (num_samples, num_classes)
-
-            # Skip the background class using slicing
-            data_to_plot = [scores[:, i] for i in range(1, len(class_names))]
-
-            # Prepare data in long-form DataFrame for seaborn
-            data = []
-            for i, class_name in enumerate(class_names[1:]):
-                for value in data_to_plot[i]:
-                    data.append({'Class': class_name, name_score: value})
-
-            df = pd.DataFrame(data)
-
-            plt.figure(figsize=(8, 6))
-
-            # Boxplot without outliers
-            sns.boxplot(x='Class', y=name_score, data=df, palette=colors, showfliers=False)  # No outliers
-
-            # Optional stripplot (can be removed if you want no dots)
-            # sns.stripplot(x='Class', y=name_score, data=df, color='black', alpha=0.5, jitter=0.2)
-
-            plt.title(f"{name_score} per class (excluding Background)", fontsize=14)
-            plt.ylabel(name_score, fontsize=12)
-            plt.xlabel('Class', fontsize=12)
-
-            plt.xticks(rotation=45, fontsize=12)
-            plt.tight_layout()
-            plt.savefig(os.path.join(evaluate_dir, f"{name_score}_per_class_{theme}.png"), dpi=300)
-            plt.close()
-
-def print_metrics(metrics, evaluate_dir):
-    with open(os.path.join(evaluate_dir, "metrics.txt"), 'w') as f:
+def print_metrics(metrics, evaluate_dir, name="metrics"):
+    with open(os.path.join(evaluate_dir, name + ".txt"), 'w') as f:
         for name_score, values in metrics.items():
             scores = np.array(values)  # Shape: (num_samples, num_classes)
             score_per_class = scores.mean(axis=0)
@@ -277,6 +139,8 @@ def print_metrics(metrics, evaluate_dir):
             print(f"Mean (excluding background) : {score_per_class[1:].mean()}")
             f.write("\n")
             print("\n")
+
+
 def main():
     args = args_parser()
 
@@ -290,11 +154,17 @@ def main():
     test_loader = initialize_data_test()
 
     metrics = defaultdict(list)
+    volume_predictions = defaultdict(list)
+    volume_ground_truths = defaultdict(list)
 
     with torch.no_grad():
         for batch_idx, data in tqdm(enumerate(test_loader)):
             img = data['images'].to(device)  # (B, C, H, W) -> (1, 5, 256, 256)
             gt = data['gts'].to(device)  # (B, K, H, W) ->
+
+            volume_id = data['volume_id'].item()  # Batch size must be 1!
+            slice_idx = data['slice_idx'].item()
+
             plottables = defaultdict(torch.Tensor)
             plottables["Ground truth"] = gt
 
@@ -305,6 +175,12 @@ def main():
             # Convert probabilities to one-hot
             pred_one_hot = probs2one_hot(pred_probs)  # Shape: (B, K, H, W)
             plottables["Normal prediction"] = pred_one_hot
+
+            # Save to 3D slices
+            pred_slice = pred_one_hot.squeeze(0).cpu()
+            gt_slice = gt.squeeze(0).cpu()
+            volume_predictions[volume_id].append((slice_idx, pred_slice))
+            volume_ground_truths[volume_id].append((slice_idx, gt_slice))
 
             if args.crf:
                 crf_pred_one_hot = crf_post_processing(img, pred_probs, args).to(device)
@@ -334,6 +210,16 @@ def main():
             # if batch_idx > 10:
             #     break
 
+    metrics_3d = three_dimensional_metrics(volume_predictions, volume_ground_truths)
+    with open(evaluate_dir + "/metrics3D.pkl", "wb") as f:
+        pickle.dump(metrics_3d, f)
+    print_metrics(metrics_3d, evaluate_dir, name="metrics3D")
+    plot_metrics(metrics_3d, evaluate_dir)
+    animate_3d_volume(volume_predictions, volume_ground_truths, evaluate_dir)
+
+    # make pickle object of metrics dict
+    with open(evaluate_dir + "/metrics.pkl", "wb") as f:
+        pickle.dump(metrics, f)
     print_metrics(metrics, evaluate_dir)
     plot_metrics(metrics, evaluate_dir)
 
