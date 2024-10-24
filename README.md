@@ -12,8 +12,8 @@ git clone https://github.com/krijnD/AI4MI.git
 cd AI4MI/nnUNet
 pip install -e .
 ```
-### Data Conversion
-To convert the SEGTHOR dataset into the nnUNet format, use the provided  script. Example:
+### Data Conversion and Preprocessing
+Before using nnUNet, the SEGTHOR dataset must be converted to the required format. You can use the following script:
 ```bash
 python data/pre-processing/convert_segthor_to_nnunetv2_custom_split.py \
   --data_dir <data_dir> \
@@ -25,13 +25,13 @@ python data/pre-processing/convert_segthor_to_nnunetv2_custom_split.py \
   --dataset_id <dataset_id> \
   --dataset_name <dataset_name>
 ```
-after converting the data it has to be preprocessed:
+Once the conversion is complete, preprocess the data to prepare it for training:
 ```bash
 nnUNetv2_plan_and_preprocess -d <dataset_id > --verify_dataset_integrity
 ```
 
 ### Training with nnUNet
-To train models with nnUNet, use the nnUNetv2_train command with the appropriate dataset ID, configuration, fold, and trainer class (for different loss functions).
+To train a model using nnUNet, use the nnUNetv2_train command with the appropriate parameters for your dataset, configuration, and trainer class.
 
 ```bash
 nnUNetv2_train <dataset_id> <configuration> <fold> -tr <trainer_class>
@@ -45,7 +45,7 @@ nnUNetv2_train 55 2d 0 -tr nnUNetTrainerTverskyLoss
 ```
 
 ### Inference
-To perform inference with a trained model, use the nnUNetv2_predict command.
+After training, perform inference using the nnUNetv2_predict command.
 ```bash
 nnUNetv2_predict -i <input_folder> -o <output_folder> -d <dataset_id> -c <configuration> -tr <trainer_class> -f <fold>
 ```
