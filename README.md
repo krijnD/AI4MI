@@ -13,6 +13,9 @@ cd AI4MI/nnUNet
 pip install -e .
 ```
 ### Data Conversion and Preprocessing
+Before converting data, ensure the dataset follows the correct folder structure. This repository is a clone of the original nnUNet repository, and for detailed instructions on creating the correct structure, please refer to the original [nnUNet repository](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/dataset_format.md).
+
+
 Before using nnUNet, the SEGTHOR dataset must be converted to the required format. You can use the following script:
 ```bash
 python data/pre-processing/convert_segthor_to_nnunetv2_custom_split.py \
