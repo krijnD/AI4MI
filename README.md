@@ -14,6 +14,12 @@ We designed our research to focus on the following three dimensions:
 
 The aim is not to directly compare models like ENet and nnUNet head-to-head since they inherently differ in components such as dataloaders, optimizers, and overall architecture. Instead, we focus on **within-model comparisons** by observing the effects of different losses, data augmentations, and post-processing on each model individually. Only after analyzing these internal variations do we make cross-model comparisons—while acknowledging the inherent limitations and “unfair” aspects of these comparisons.
 
+## Find our models and results
+In the _ENet/evaluation_ folder we find directories for each of the models that we tested. including some notebooks used for visualizations. In each of these directories we find 3D renders of test predictions, 2D slice predictions, and plots of the test metrics. Be free to have a look!
+In _nnUnet/results_ we find the same information for the nnUnet models, but in a rather different structure.
+
+The model weights for ENet can be found in the _ENet/results_ folder, and the nnUnet models can be found in the _nnUnet/experiments_ folder.
+
 ## Data Preparation and Augmentation
 If you have the SEGTHOR dataset in a zip file, follow these steps to prepare and augment the data:
 1.	Unzip the Data: Extract data.zip into the data/ folder.
