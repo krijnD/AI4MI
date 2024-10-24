@@ -1,4 +1,5 @@
 # AI4MI
+![Pipeline](AI4MI/pipeline.png)
 ## Data Preparation and Augmentation
 If you have the SEGTHOR dataset in a zip file, follow these steps to prepare and augment the data:
 1.	Unzip the Data: Extract data.zip into the data/ folder.
