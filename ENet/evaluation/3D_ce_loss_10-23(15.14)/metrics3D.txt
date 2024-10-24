@@ -1,0 +1,14 @@
+Mean 3D Dice per class:
+Class Background: 0.9979
+Class Esophagus: 0.5157
+Class Heart: 0.8384
+Class Trachea: 0.8660
+Class Aorta: 0.8036
+Mean (excluding background): 0.7559527724981308
+Mean 3D Hausdorff distance per class:
+Class Background: 26.5494
+Class Esophagus: 15.8237
+Class Heart: 43.3605
+Class Trachea: 20.4264
+Class Aorta: 69.9053
+Mean (excluding background): 37.378997134921185

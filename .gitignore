@@ -12,9 +12,7 @@ data/pre-processing/*.tmp
 !data/*.b3sum
 !data/*.sha256
 
-ENet/results/
 VNet/results/
-ENet/evaluation/
 ENet/volumes/
 volumes/
 ai4mi/
@@ -190,7 +188,4 @@ cython_debug/
 .idea/
 
 # Results
-results/
-ENet/bestweights75epoch
-evaluation/
 grid_search_results/
