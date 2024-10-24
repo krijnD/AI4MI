@@ -37,13 +37,29 @@ To train models with nnUNet, use the nnUNetv2_train command with the appropriate
 nnUNetv2_train <dataset_id> <configuration> <fold> -tr <trainer_class>
 ```
 
-```
 Examples of training with different loss functions:
 ```bash
 nnUNetv2_train 55 2d 0 -tr nnUNetTrainerDiceCELoss_noSmooth
 nnUNetv2_train 55 2d 0 -tr nnUNetTrainerFocalLoss
 nnUNetv2_train 55 2d 0 -tr nnUNetTrainerTverskyLoss
 ```
+
+### Inference
+To perform inference with a trained model, use the nnUNetv2_predict command.
+```bash
+nnUNetv2_predict -i <input_folder> -o <output_folder> -d <dataset_id> -c <configuration> -tr <trainer_class> -f <fold>
+```
+
+Example of Inference with the Dice + CE loss trained model:
+```bash
+nnUNetv2_predict -i <imagesTs_dir> \
+  -o <predictions_dir> \
+  -d 55 \
+  -c 2d \
+  -tr nnUNetTrainerDiceCELoss_noSmooth \
+  -f 0
+```
+
 ### Post-processing with CRF
 
 To apply Conditional Random Fields (CRF) as post-processing:
