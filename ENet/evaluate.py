@@ -56,6 +56,7 @@ def initialize_model(model_path, device):
 
 def initialize_data_test():
     root_dir = Path("data") / "SEGTHOR_train"
+    root_dir = Path("data") / "SEGTHOR"
 
     K = 5
 
@@ -156,6 +157,7 @@ def main():
     metrics = defaultdict(list)
     volume_predictions = defaultdict(list)
     volume_ground_truths = defaultdict(list)
+    crf_volumes = defaultdict(list)
 
     with torch.no_grad():
         for batch_idx, data in tqdm(enumerate(test_loader)):
@@ -176,20 +178,23 @@ def main():
             pred_one_hot = probs2one_hot(pred_probs)  # Shape: (B, K, H, W)
             plottables["Normal prediction"] = pred_one_hot
 
-            # Save to 3D slices
-            pred_slice = pred_one_hot.squeeze(0).cpu()
-            gt_slice = gt.squeeze(0).cpu()
-            volume_predictions[volume_id].append((slice_idx, pred_slice))
-            volume_ground_truths[volume_id].append((slice_idx, gt_slice))
 
             if args.crf:
                 crf_pred_one_hot = crf_post_processing(img, pred_probs, args).to(device)
                 plottables["Dense CRF prediction"] = crf_pred_one_hot
+                crf_slice = crf_pred_one_hot.squeeze(0).cpu()
+                crf_volumes[volume_id].append((slice_idx, crf_slice))
+
 
             if batch_idx % 50 == 0:
                 plot_results(img, plottables, batch_idx, evaluate_dir)
 
             # Add metrics
+            # Save to 3D slices
+            pred_slice = pred_one_hot.squeeze(0).cpu()
+            gt_slice = gt.squeeze(0).cpu()
+            volume_predictions[volume_id].append((slice_idx, pred_slice))
+            volume_ground_truths[volume_id].append((slice_idx, gt_slice))
 
             # Compute Dice coefficients
             dice_normal = dice_coef(gt, pred_one_hot)
@@ -210,12 +215,12 @@ def main():
             # if batch_idx > 10:
             #     break
 
-    metrics_3d = three_dimensional_metrics(volume_predictions, volume_ground_truths)
+    metrics_3d = three_dimensional_metrics(crf_volumes if args.crf else volume_predictions, volume_ground_truths)
     with open(evaluate_dir + "/metrics3D.pkl", "wb") as f:
         pickle.dump(metrics_3d, f)
     print_metrics(metrics_3d, evaluate_dir, name="metrics3D")
     plot_metrics(metrics_3d, evaluate_dir)
-    animate_3d_volume(volume_predictions, volume_ground_truths, evaluate_dir)
+    animate_3d_volume(volume_predictions, volume_ground_truths if not args.crf else crf_volumes, evaluate_dir, args)
 
     # make pickle object of metrics dict
     with open(evaluate_dir + "/metrics.pkl", "wb") as f:

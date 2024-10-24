@@ -19,14 +19,15 @@ custom_palette = {
 }
 
 custom_cmap = ListedColormap([
-    custom_palette['grey_dark'],   # Class 1
+    custom_palette['grey_dark'],  # Class 1
     custom_palette['groen'],  # Class 2
     custom_palette['paars'],  # Class 3
-    custom_palette['blue'],   # Class 4
+    custom_palette['blue'],  # Class 4
     custom_palette['orange']  # Class 5
 ])
 
 class_names = ['Background', 'Esophagus', 'Heart', 'Trachea', 'Aorta']
+
 
 def set_custom_dark_theme():
     # Set light grey background
@@ -49,6 +50,7 @@ def set_custom_dark_theme():
                      custom_palette['blue'],
                      custom_palette['orange']])
 
+
 def set_custom_light_theme():
     # Set light grey background
     sns.set_context('notebook', font_scale=1.2)
@@ -59,7 +61,7 @@ def set_custom_light_theme():
         'xtick.color': 'black',  # X-tick color
         'ytick.color': 'black',  # Y-tick color
         'grid.color': custom_palette["grey_light"],  # Gridline color
-        'figure.facecolor':'white',  # Set figure background to light grey
+        'figure.facecolor': 'white',  # Set figure background to light grey
         'text.color': 'black'  # Color of text in the plot
     })
 
@@ -99,6 +101,7 @@ def plot_results(image, plottables, idx, evaluate_dir):
 
         plt.savefig(evaluate_dir + "/predict_" + str(idx) + "_" + theme + ".png")
         plt.close()
+
 
 def plot_metrics(metrics, evaluate_dir):
     for theme in ["light", "dark"]:
@@ -146,7 +149,8 @@ def plot_metrics(metrics, evaluate_dir):
             plt.savefig(os.path.join(evaluate_dir, f"{name_score}_per_class_{theme}.png"), dpi=300)
             plt.close()
 
-def animate_3d_volume(volume_predictions, volume_ground_truths, evaluate_dir):
+
+def animate_3d_volume(volume_predictions, volume_ground_truths, evaluate_dir, args):
     # Assuming volume_predictions and volume_ground_truths are defined as before
     ids = [1, 13, 22, 28, 30]
     for volume_id in ids:
@@ -167,10 +171,10 @@ def animate_3d_volume(volume_predictions, volume_ground_truths, evaluate_dir):
 
         # Call the rendering function
         # render_3d_segmentation(pred_volume, gt_volume, volume_id)
-        render_3d_segmentation(pred_volume, gt_volume, volume_id, output_dir=evaluate_dir)
+        render_3d_segmentation(pred_volume, gt_volume, volume_id, args, output_dir=evaluate_dir)
 
 
-def render_3d_segmentation(pred_volume, gt_volume, volume_id, output_dir):
+def render_3d_segmentation(pred_volume, gt_volume, volume_id, args, output_dir):
     # pred_volume: Tensor of shape (K, D, H, W)
     # gt_volume: Tensor of shape (K, D, H, W)
 
@@ -229,10 +233,10 @@ def render_3d_segmentation(pred_volume, gt_volume, volume_id, output_dir):
         p.add_title(title)
 
     # Add ground truth surfaces
-    add_class_surfaces(grid_gt, subplot_index=0, title='Ground Truth')
+    add_class_surfaces(grid_gt, subplot_index=0, title='Ground Truth' if not args.crf else 'Normal Prediction')
 
     # Add prediction surfaces
-    add_class_surfaces(grid_pred, subplot_index=1, title='Prediction')
+    add_class_surfaces(grid_pred, subplot_index=1, title='Prediction' if not args.crf else 'CRF Prediction')
 
     # Link the views
     p.link_views()
@@ -259,5 +263,3 @@ def render_3d_segmentation(pred_volume, gt_volume, volume_id, output_dir):
     # Close the plotter
     p.close()
     print(f"Rendered 3D segmentation saved to {screenshot_path}")
-
-
