@@ -1,5 +1,6 @@
 # AI4MI
 ![Pipeline](AI4MI/pipeline.png)
+
 This repository is a research project conducted as part of the “AI for Medical Imaging” course at the University of Amsterdam (UvA). This project focuses on comparing three segmentation models—ENet, nnUNet 2D, and nnUNet 3D—on the SEGTHOR dataset, a publicly available dataset for thoracic organ segmentation in CT scans.
 
 ## Research Scope
